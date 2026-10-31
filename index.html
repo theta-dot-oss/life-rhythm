@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="ja" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>だいちゃーじ！生活リズム</title>
+<meta name="description" content="研究・休憩・運動のリズムをペンギンが案内する常駐アプリ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#eaf4fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111a24" media="(prefers-color-scheme: dark)">
+<style>
+:root{
+  --bg:#eef4f9; --card:#ffffff; --fg:#1d2a3a; --muted:#5f6f82; --line:#d7e2ec;
+  --accent:#2f8fd6; --accent-fg:#ffffff; --soft:#e3f1fb; --warn:#e3a53a; --ok:#3fa36b;
+  --bubble:#f3f8fc; --shadow:0 6px 24px rgba(30,50,80,.10);
+  --pg-body:#8fd3f4; --pg-hood:#3f9bdc; --pg-face:#ffffff; --pg-beak:#bfe6fb; --pg-line:#1e2c44; --pg-cheek:#f7b7c6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f161e; --card:#18222d; --fg:#e7eef5; --muted:#93a4b7; --line:#273441;
+    --accent:#58a9e6; --accent-fg:#0d1621; --soft:#1f3140; --warn:#e6b35a; --ok:#5cc38a;
+    --bubble:#1f2b38; --shadow:0 6px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f161e; --card:#18222d; --fg:#e7eef5; --muted:#93a4b7; --line:#273441;
+  --accent:#58a9e6; --accent-fg:#0d1621; --soft:#1f3140; --warn:#e6b35a; --ok:#5cc38a;
+  --bubble:#1f2b38; --shadow:0 6px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Yu Gothic UI","Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-font-smoothing:antialiased;display:flex;align-items:flex-start;justify-content:center;padding:16px}
+body.pip{padding:0;align-items:stretch}
+#app{width:100%;max-width:320px;background:var(--card);border-radius:18px;box-shadow:var(--shadow);border:1px solid var(--line);
+  display:flex;flex-direction:column;overflow:hidden;position:relative}
+body.pip #app{max-width:none;border-radius:0;border:0;box-shadow:none;min-height:100%}
+.top{display:flex;align-items:center;gap:8px;padding:10px 12px 0}
+.clock{font-size:22px;font-weight:700;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+.dow{font-size:12px;color:var(--muted);margin-top:4px}
+.spacer{flex:1}
+.ibtn{appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;width:30px;height:30px;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
+.ibtn:hover{background:var(--soft);color:var(--fg)}
+.stage{display:flex;gap:10px;padding:8px 12px 0;align-items:flex-start}
+.pg{width:104px;height:104px;flex:0 0 auto;position:relative}
+.pg svg{width:100%;height:100%;overflow:visible}
+.info{flex:1;min-width:0;padding-top:6px}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--soft);color:var(--accent)}
+.badge.working{background:var(--soft)}
+.badge.break,.badge.longbreak{background:#e8f6ee;color:var(--ok)}
+:root[data-theme="dark"] .badge.break,:root[data-theme="dark"] .badge.longbreak{background:#1c3328}
+.badge.exercise{background:#fff1dc;color:#b7741a}
+:root[data-theme="dark"] .badge.exercise{background:#3a2d17;color:var(--warn)}
+.cur{margin-top:6px;font-size:13px;color:var(--muted)}
+.cur b{color:var(--fg);font-weight:600}
+.elapsed{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
+.elapsed small{font-size:12px;color:var(--muted);font-weight:500;margin-left:4px}
+.bubble{margin:8px 12px 0;background:var(--bubble);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px;position:relative;min-height:38px}
+.bubble:before{content:"";position:absolute;left:38px;top:-7px;width:12px;height:12px;background:var(--bubble);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+.next{margin:8px 12px 0;font-size:13px}
+.next .main{font-weight:600}
+.next .sub{color:var(--muted);font-size:12px;margin-top:2px}
+.next .cal{color:var(--muted);font-size:12px;margin-top:2px}
+.next .cal span{color:var(--fg)}
+.bar{margin:8px 12px 0;height:6px;background:var(--line);border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .5s linear}
+.bar.over i{background:var(--warn)}
+.actions{display:flex;gap:8px;padding:10px 12px 12px}
+.btn{appearance:none;border:0;border-radius:12px;padding:11px 12px;font-size:15px;font-weight:700;cursor:pointer;flex:1;
+  background:var(--accent);color:var(--accent-fg);letter-spacing:.3px}
+.btn:active{transform:translateY(1px)}
+.btn.sec{flex:0 0 auto;background:var(--soft);color:var(--accent);font-size:13px;font-weight:600}
+.btn.end{background:#e8f6ee;color:var(--ok)}
+:root[data-theme="dark"] .btn.end{background:#1c3328}
+.hint{font-size:11px;color:var(--muted);padding:0 12px 10px;display:none}
+.hint.show{display:block}
+.hint button{appearance:none;border:0;background:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;text-decoration:underline}
+.flash{position:absolute;inset:0;pointer-events:none;background:var(--accent);opacity:0;}
+.flash.on{animation:flash 1.2s ease-out}
+@keyframes flash{0%{opacity:.28}100%{opacity:0}}
+/* panels */
+.panel{position:absolute;inset:0;background:var(--card);display:none;flex-direction:column;z-index:5}
+.panel.show{display:flex}
+.panel header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700}
+.panel .body{padding:10px 12px;overflow:auto;flex:1;font-size:13px}
+.panel .body h4{margin:10px 0 4px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+.panel .body h4:first-child{margin-top:0}
+.menu button{display:block;width:100%;text-align:left;appearance:none;border:0;background:transparent;color:var(--fg);padding:9px 6px;font-size:14px;border-radius:8px;cursor:pointer}
+.menu button:hover{background:var(--soft)}
+.menu button small{color:var(--muted);font-size:11px;margin-left:6px}
+.menu .sep{height:1px;background:var(--line);margin:4px 0}
+.tasks label{display:flex;gap:8px;align-items:flex-start;padding:5px 0;cursor:pointer}
+.tasks input{margin-top:3px}
+.tasks .done{color:var(--muted);text-decoration:line-through}
+.ev{display:flex;gap:8px;padding:3px 0}
+.ev .t{color:var(--muted);font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:86px}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.stat div{background:var(--soft);border-radius:10px;padding:8px}
+.stat b{display:block;font-size:18px}
+.stat span{font-size:11px;color:var(--muted)}
+.muted{color:var(--muted)}
+table.tt{width:100%;border-collapse:collapse;font-size:12px}
+table.tt td{padding:3px 4px;border-bottom:1px solid var(--line)}
+table.tt td:first-child{color:var(--muted);font-variant-numeric:tabular-nums;width:48px}
+.fixed{color:#b7741a;font-weight:600}
+.friend{position:absolute;right:-70px;top:120px;width:52px;height:52px;transition:right .6s cubic-bezier(.2,.9,.3,1.2);pointer-events:none;z-index:2}
+.friend.show{right:10px}
+.friend svg{width:100%;height:100%;overflow:visible}
+
+/* ---------- penguin animation ---------- */
+.pg .fl,.pg .fr{transform-box:fill-box;transform-origin:top center}
+.pg .zz,.pg .laptop,.pg .eyes-sleep,.pg .eyes-happy,.pg .notes,.pg .sweat,.pg .bottle{display:none}
+.pg .whole{transform-box:fill-box;transform-origin:bottom center}
+.pose-idle .whole{animation:bob 3s ease-in-out infinite}
+.pose-idle .fl{animation:waveL 3s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes waveL{0%,100%{transform:rotate(0)}50%{transform:rotate(-14deg)}}
+.pose-work .laptop{display:block}
+.pose-work .fl{animation:typeL .5s steps(2) infinite}
+.pose-work .fr{animation:typeR .5s steps(2) infinite .25s}
+@keyframes typeL{0%{transform:rotate(-40deg) translateY(0)}100%{transform:rotate(-40deg) translateY(2px)}}
+@keyframes typeR{0%{transform:rotate(40deg) translateY(0)}100%{transform:rotate(40deg) translateY(2px)}}
+.pose-break .whole{animation:sway 2.4s ease-in-out infinite}
+.pose-break .fl{animation:stretchL 2.4s ease-in-out infinite}
+.pose-break .fr{animation:stretchR 2.4s ease-in-out infinite}
+.pose-break .notes{display:block;animation:floatUp 2.4s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes stretchL{0%,100%{transform:rotate(-30deg)}50%{transform:rotate(-160deg)}}
+@keyframes stretchR{0%,100%{transform:rotate(30deg)}50%{transform:rotate(160deg)}}
+@keyframes floatUp{0%{opacity:0;transform:translateY(4px)}30%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+.pose-ex .whole{animation:jump .7s ease-in-out infinite}
+.pose-ex .fl{animation:pumpL .7s ease-in-out infinite}
+.pose-ex .fr{animation:pumpR .7s ease-in-out infinite}
+.pose-ex .sweat{display:block;animation:floatUp 1.4s ease-in-out infinite}
+@keyframes jump{0%,100%{transform:translateY(0) scaleY(1)}40%{transform:translateY(-10px) scaleY(1.03)}}
+@keyframes pumpL{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(-150deg)}}
+@keyframes pumpR{0%,100%{transform:rotate(20deg)}50%{transform:rotate(150deg)}}
+.pose-sleep .whole{animation:breathe 4s ease-in-out infinite}
+.pose-sleep .eyes-open{display:none}
+.pose-sleep .eyes-sleep,.pose-sleep .zz{display:block}
+.pose-sleep .zz{animation:floatUp 3s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.03)}}
+.pose-happy .whole{animation:hop 1s ease-in-out infinite}
+.pose-happy .eyes-open{display:none}
+.pose-happy .eyes-happy{display:block}
+.pose-happy .fl{animation:waveL 1s ease-in-out infinite}
+.pose-happy .fr{animation:waveR 1s ease-in-out infinite}
+@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes waveR{0%,100%{transform:rotate(0)}50%{transform:rotate(14deg)}}
+.pose-prep .bottle{display:block}
+.pose-prep .whole{animation:bob 3s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.pg *{animation:none !important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="flash" id="flash"></div>
+  <div class="top">
+    <div><div class="clock" id="clock">--:--</div></div>
+    <div class="dow" id="dow"></div>
+    <div class="spacer"></div>
+    <button class="ibtn" id="btnPip" title="小窓で常に最前面に表示">⧉</button>
+    <button class="ibtn" id="btnMenu" title="メニュー">⋯</button>
+  </div>
+  <div class="stage">
+    <div class="pg pose-idle" id="pg">
+      <svg viewBox="0 0 120 120" aria-label="青いペンギン">
+        <g class="whole">
+          <!-- feet -->
+          <ellipse cx="46" cy="110" rx="12" ry="5" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2"/>
+          <ellipse cx="74" cy="110" rx="12" ry="5" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2"/>
+          <!-- body -->
+          <path d="M60 14 C 28 14, 20 48, 22 76 C 24 100, 40 108, 60 108 C 80 108, 96 100, 98 76 C 100 48, 92 14, 60 14 Z" fill="var(--pg-hood)" stroke="var(--pg-line)" stroke-width="2.5"/>
+          <!-- belly / face (white) -->
+          <path d="M60 36 C 42 36, 32 52, 33 74 C 34 94, 46 104, 60 104 C 74 104, 86 94, 87 74 C 88 52, 78 36, 60 36 Z" fill="var(--pg-face)"/>
+          <path d="M60 30 C 50 30, 44 36, 44 44 C 44 54, 52 56, 60 56 C 68 56, 76 54, 76 44 C 76 36, 70 30, 60 30 Z" fill="var(--pg-face)"/>
+          <!-- flippers -->
+          <g class="fl"><path d="M28 60 C 14 66, 10 82, 18 90 C 26 94, 34 82, 36 66 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="2.5"/></g>
+          <g class="fr"><path d="M92 60 C 106 66, 110 82, 102 90 C 94 94, 86 82, 84 66 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="2.5"/></g>
+          <!-- light blue body tint -->
+          <path d="M60 36 C 42 36, 32 52, 33 74 C 34 94, 46 104, 60 104 C 74 104, 86 94, 87 74 C 88 52, 78 36, 60 36 Z" fill="var(--pg-body)" opacity=".25"/>
+          <!-- eyes -->
+          <g class="eyes-open">
+            <circle cx="50" cy="46" r="3.2" fill="var(--pg-line)"/>
+            <circle cx="70" cy="46" r="3.2" fill="var(--pg-line)"/>
+            <circle cx="51.2" cy="44.8" r="1" fill="#fff"/>
+            <circle cx="71.2" cy="44.8" r="1" fill="#fff"/>
+          </g>
+          <g class="eyes-sleep" stroke="var(--pg-line)" stroke-width="2.4" stroke-linecap="round" fill="none">
+            <path d="M46 47 q4 2 8 0"/><path d="M66 47 q4 2 8 0"/>
+          </g>
+          <g class="eyes-happy" stroke="var(--pg-line)" stroke-width="2.4" stroke-linecap="round" fill="none">
+            <path d="M46 47 q4 -4 8 0"/><path d="M66 47 q4 -4 8 0"/>
+          </g>
+          <!-- cheeks -->
+          <circle cx="43" cy="53" r="3" fill="var(--pg-cheek)" opacity=".8"/>
+          <circle cx="77" cy="53" r="3" fill="var(--pg-cheek)" opacity=".8"/>
+          <!-- beak (diamond) -->
+          <path d="M60 50 L 67 56 L 60 63 L 53 56 Z" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2.2" stroke-linejoin="round"/>
+          <!-- props -->
+          <g class="laptop">
+            <rect x="34" y="84" width="52" height="6" rx="2" fill="#9aa9b8" stroke="var(--pg-line)" stroke-width="2"/>
+            <rect x="38" y="62" width="44" height="24" rx="3" fill="#34495e" stroke="var(--pg-line)" stroke-width="2"/>
+            <rect x="42" y="66" width="36" height="16" rx="1.5" fill="#cfe9fb"/>
+          </g>
+          <g class="bottle">
+            <rect x="96" y="78" width="10" height="24" rx="3" fill="#cfe9fb" stroke="var(--pg-line)" stroke-width="2"/>
+            <rect x="98" y="72" width="6" height="7" rx="1.5" fill="#3f9bdc" stroke="var(--pg-line)" stroke-width="2"/>
+          </g>
+        </g>
+        <g class="zz" fill="var(--pg-line)" font-weight="700" font-family="system-ui,sans-serif">
+          <text x="92" y="24" font-size="14">z</text><text x="102" y="14" font-size="10">z</text>
+        </g>
+        <g class="notes" fill="var(--accent)" font-family="system-ui,sans-serif">
+          <text x="94" y="30" font-size="16">♪</text><text x="106" y="18" font-size="12">♫</text>
+        </g>
+        <g class="sweat" fill="#58a9e6">
+          <path d="M100 30 c-3 5 -3 8 0 8 c3 0 3 -3 0 -8z"/><path d="M108 22 c-2 4 -2 6 0 6 c2 0 2 -2 0 -6z"/>
+        </g>
+      </svg>
+    </div>
+    <div class="info">
+      <span class="badge" id="badge">待機中</span>
+      <div class="cur">現在：<b id="cur">—</b></div>
+      <div class="elapsed" id="elapsed"><span id="elapsedVal">00:00</span><small id="elapsedLabel"></small></div>
+    </div>
+  </div>
+  <div class="bubble" id="bubble">…</div>
+  <div class="next">
+    <div class="main" id="nextMain"></div>
+    <div class="sub" id="nextSub"></div>
+    <div class="cal" id="nextCal"></div>
+  </div>
+  <div class="bar" id="bar"><i></i></div>
+  <div class="actions" id="actions"></div>
+  <div class="hint" id="hint"></div>
+  <div class="friend" id="friend"></div>
+
+  <!-- menu panel -->
+  <div class="panel" id="menuPanel">
+    <header><span>メニュー</span><span class="spacer"></span><button class="ibtn" data-close>✕</button></header>
+    <div class="body menu" id="menuBody"></div>
+  </div>
+  <!-- list panel -->
+  <div class="panel" id="listPanel">
+    <header><span id="listTitle">今日のリスト</span><span class="spacer"></span><button class="ibtn" data-close>✕</button></header>
+    <div class="body" id="listBody"></div>
+  </div>
+  <!-- summary panel -->
+  <div class="panel" id="sumPanel">
+    <header><span>今日のまとめ</span><span class="spacer"></span><button class="ibtn" data-close>✕</button></header>
+    <div class="body" id="sumBody"></div>
+  </div>
+  <!-- settings panel -->
+  <div class="panel" id="setPanel">
+    <header><span>設定（表示のみ）</span><span class="spacer"></span><button class="ibtn" data-close>✕</button></header>
+    <div class="body" id="setBody"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const LS = 'lr_state_v1', LS_THEME = 'lr_theme', LS_HIST = 'lr_history_v1';
+const pad = n => String(n).padStart(2, '0');
+const fmtClock = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fmtDur = ms => { ms = Math.max(0, Math.round(ms / 1000)); const h = Math.floor(ms / 3600), m = Math.floor(ms % 3600 / 60), s = ms % 60; return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`; };
+const fmtMin = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)}時間${m % 60 ? m % 60 + '分' : ''}` : `${m}分`; };
+const pick = (arr, avoid) => { if (!arr || !arr.length) return ''; if (arr.length === 1) return arr[0]; let x; do { x = arr[Math.floor(Math.random() * arr.length)]; } while (x === avoid); return x; };
+const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+
+let CFG = null, TODAY = null, S = null;
+let root = document, pipWin = null, audioCtx = null, swReg = null;
+
+/* ---------- defaults (used if config.json cannot be loaded) ---------- */
+const DEFAULT_CFG = { work_minutes: 50, break_minutes: 5, extend_minutes: 10, renotify_minutes: 4, renotify_max: 2, exercise_window_minutes: 60,
+  calendar_notice_minutes: 10, calendar_conflict_max_hours: 3, day_boundary_hour: 5, sound: true, cameo_chance: .25, milk_chance: .25,
+  timetable: [{ time: '17:15', label: '運動', kind: 'exercise', fixed: true }], exercise: {}, character: { name: 'ペンギン', catchphrase: 'だいちゃーじ！' },
+  lines: {}, break_suggestions: [{ type: 'move', text: '立ち上がって肩を回そう。' }] };
+
+/* ---------- time helpers ---------- */
+function dayKey(ts) { const d = new Date(ts - (CFG.day_boundary_hour || 0) * 3600000); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function todayDate(ts) { const d = new Date(ts - (CFG.day_boundary_hour || 0) * 3600000); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function atTime(base, hhmm, dayOffset = 0) { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); const d = new Date(base); d.setDate(d.getDate() + dayOffset); d.setHours(h, m, 0, 0); return d.getTime(); }
+// "logical day" entries: times before boundary hour belong to the next calendar date
+function entryTs(base, hhmm) { const [h] = hhmm.split(':').map(Number); return atTime(base, hhmm, h < (CFG.day_boundary_hour || 0) ? 1 : 0); }
+
+/* ---------- state ---------- */
+function freshState(now) {
+  return { day: dayKey(now), mode: 'idle', since: now, target: null, pausedAt: null, pausedTotal: 0, extended: 0, muteUntil: 0,
+    started: false, startedAt: null, endedAt: null, exerciseDone: false, exerciseSkipped: false, exerciseStartedAt: null, suggestion: '', cameo: null,
+    log: [], notified: {}, tasksDone: [], line: '' };
+}
+function load() { try { const s = JSON.parse(localStorage.getItem(LS)); if (s && s.day) return s; } catch (e) { } return null; }
+function save() { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { } }
+
+/* ---------- exercise of the day ---------- */
+function exerciseToday(now) {
+  const base = todayDate(now); const ex = (CFG.exercise || {})[String(base.getDay())];
+  if (!ex || !ex.start) return null;
+  let start = atTime(base, ex.start), end = atTime(base, ex.end || ex.start);
+  if (end <= start) end = start + 20 * 60000;
+  // calendar conflict: a (short) event overlapping the slot pushes the exercise after it
+  let shiftedBy = null;
+  for (const e of eventsToday(now)) {
+    const dur = e.end - e.start; if (dur > (CFG.calendar_conflict_max_hours || 3) * 3600000) continue;
+    if (e.start < end && e.end > start) { if (e.end > start) { const len = end - start; start = e.end; end = start + len; shiftedBy = e.title; } }
+  }
+  return { ...ex, start, end, shiftedBy, dow: base.getDay() };
+}
+function eventsToday(now) {
+  if (!TODAY || !Array.isArray(TODAY.events)) return [];
+  const base = todayDate(now), d0 = base.getTime(), d1 = d0 + 86400000 + (CFG.day_boundary_hour || 0) * 3600000;
+  return TODAY.events.map(e => ({ title: e.title || '予定', start: Date.parse(e.start), end: Date.parse(e.end || e.start) }))
+    .filter(e => !isNaN(e.start) && e.start < d1 && e.end > d0).sort((a, b) => a.start - b.start);
+}
+function timetableToday(now) {
+  const base = todayDate(now), dow = base.getDay();
+  return (CFG.timetable || []).filter(t => !t.days || t.days.includes(dow)).map(t => ({ ...t, ts: entryTs(base, t.time) })).sort((a, b) => a.ts - b.ts);
+}
+function todayDataValid(now) { return TODAY && TODAY.date === dayKey(now); }
+
+/* ---------- transitions ---------- */
+function closeSegment(now) {
+  if (['working', 'break', 'longbreak', 'exercise'].includes(S.mode)) {
+    const from = S.since, to = S.pausedAt || now;
+    if (to - from > 30000) S.log.push({ kind: S.mode, from, to, paused: S.pausedTotal });
+  }
+}
+function setMode(mode, now, target) {
+  closeSegment(now);
+  S.mode = mode; S.since = now; S.target = target || null; S.pausedAt = null; S.pausedTotal = 0; S.extended = 0;
+  for (const k of Object.keys(S.notified)) if (k.startsWith('due:')) delete S.notified[k];
+  S.line = ''; S.cameo = null; save(); render(true);
+}
+function startResearch(now) {
+  if (!S.started) { S.started = true; S.startedAt = now; }
+  S.endedAt = null;
+  setMode('working', now, now + CFG.work_minutes * 60000); say(pick(L('start')));
+  showList('今日のリスト');
+}
+function startBreak(now) {
+  // long break if we're inside a long_break slot (e.g. lunch/nap) and before the next prep/resume entry
+  const tt = timetableToday(now); let longUntil = null, slotLabel = null;
+  for (let i = 0; i < tt.length; i++) {
+    const t = tt[i]; if (!t.long_break) continue;
+    const nextHard = tt.slice(i + 1).find(x => !x.long_break);
+    const slotEnd = nextHard ? nextHard.ts : t.ts + 3600000;
+    if (now >= t.ts - 10 * 60000 && now < slotEnd) { longUntil = slotEnd; slotLabel = t.label; break; }
+  }
+  if (longUntil) { setMode('longbreak', now, longUntil); S.slotLabel = slotLabel; say(pick(L('long_break'))); }
+  else {
+    setMode('break', now, now + CFG.break_minutes * 60000);
+    const sug = S.suggestion || pickSuggestion(); S.suggestion = sug;
+    say(sug);
+    if (Math.random() < (CFG.cameo_chance || 0)) showFriend();
+  }
+  S.suggestion = ''; save();
+}
+function resumeWork(now) { setMode('working', now, now + CFG.work_minutes * 60000); say(pick(L('start'))); }
+function extendWork(now) {
+  const add = CFG.extend_minutes * 60000; S.target = Math.max(now, S.target || now) + add; S.extended++;
+  for (const k of Object.keys(S.notified)) if (k.startsWith('due:')) delete S.notified[k];
+  say(pick(L('extend'))); save(); render(true);
+}
+function startExercise(now) { const ex = exerciseToday(now); S.exerciseStartedAt = now; setMode('exercise', now, now + ((ex ? ex.end - ex.start : 20 * 60000))); say(ex ? ex.message : pick(L('exercise_due'))); }
+function endExercise(now) { S.exerciseDone = true; setMode('prep', now, null); say(pick(L('exercise_done'))); }
+function endResearch(now) { closeSegment(now); S.mode = 'done'; S.since = now; S.target = null; S.pausedAt = null; S.endedAt = now; save(); render(true); say(pick(L('end'))); showSummary(); saveHistory(); }
+function togglePause(now) {
+  if (S.pausedAt) { const d = now - S.pausedAt; S.pausedTotal += d; if (S.target) S.target += d; S.pausedAt = null; say('再開！'); }
+  else { S.pausedAt = now; say('一時停止中。ゆっくりどうぞ。'); }
+  save(); render(true);
+}
+function skipExercise(now) { S.exerciseSkipped = true; say('今日の運動はなしでOK。また明日、体を動かそう。'); save(); render(true); }
+function mute(now, min) { S.muteUntil = now + min * 60000; say(`${min}分間、通知をお休みするね。`); save(); render(true); }
+
+/* ---------- lines / suggestions ---------- */
+function L(k) { return (CFG.lines && CFG.lines[k]) || []; }
+function say(text) { if (!text) return; S.line = text; S.lineAt = Date.now(); save(); $('#bubble', root).textContent = text; }
+function pickSuggestion() {
+  const all = CFG.break_suggestions || []; const milk = all.filter(s => s.type === 'milk'), move = all.filter(s => s.type !== 'milk');
+  const pool = (milk.length && Math.random() < (CFG.milk_chance || 0)) ? milk : (move.length ? move : all);
+  return pick(pool.map(s => s.text), S.lastSuggestion) || '';
+}
+
+/* ---------- notifications ---------- */
+function notify(key, title, body, actions, opts = {}) {
+  const now = Date.now();
+  if (now < (S.muteUntil || 0)) return;
+  const n = S.notified[key] || { count: 0, last: 0 };
+  const max = opts.max === undefined ? 1 : opts.max, every = (CFG.renotify_minutes || 4) * 60000;
+  if (n.count >= max) return false;
+  if (n.count > 0 && now - n.last < every) return false;
+  n.count++; n.last = now; S.notified[key] = n; save();
+  const text = n.count > 1 && opts.renotifyBody ? opts.renotifyBody : body;
+  flash(); if (CFG.sound) chime(n.count > 1);
+  if (opts.say) say(n.count > 1 && opts.renotifySay ? opts.renotifySay : opts.say);
+  const payload = { body: text, icon: 'icon.png', badge: 'icon.png', tag: key.split(':')[0], renotify: true, silent: !!opts.silent, data: { key } };
+  if (!('Notification' in window) || Notification.permission !== 'granted') return true;
+  if (swReg && swReg.showNotification) { swReg.showNotification(title, { ...payload, actions: actions || [] }).catch(() => plainNotify(title, payload)); }
+  else plainNotify(title, payload);
+  return true;
+}
+function plainNotify(title, payload) { try { const n = new Notification(title, payload); n.onclick = () => { window.focus(); n.close(); }; } catch (e) { } }
+function flash() { const f = $('#flash', root); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+function chime(soft) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime, g = audioCtx.createGain(); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(soft ? .08 : .15, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + 1.1);
+    [[523.25, 0], [659.25, .18], [783.99, .36]].forEach(([f, dt]) => { const o = audioCtx.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.connect(g); o.start(t + dt); o.stop(t + 1.2); });
+  } catch (e) { }
+}
+async function ensurePermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') { try { await Notification.requestPermission(); } catch (e) { } }
+  renderHint();
+}
+function renderHint() {
+  const h = $('#hint', root);
+  if (!('Notification' in window)) { h.innerHTML = 'このブラウザは通知に対応していないよ。画面の光と音でお知らせするね。'; h.classList.add('show'); return; }
+  if (Notification.permission === 'granted') { h.classList.remove('show'); return; }
+  if (Notification.permission === 'denied') { h.innerHTML = '通知がブロックされてるみたい。アドレスバーの🔒から通知を「許可」にすると、デスクトップにお知らせできるよ。'; h.classList.add('show'); return; }
+  h.innerHTML = 'デスクトップ通知を使うには <button id="btnPerm">通知を許可</button> してね。'; h.classList.add('show');
+  $('#btnPerm', root).onclick = ensurePermission;
+}
+function handleAction(action) {
+  const now = Date.now();
+  if (action === 'break') { if (S.mode === 'working') startBreak(now); }
+  else if (action === 'extend') { if (S.mode === 'working') extendWork(now); }
+  else if (action === 'resume') { if (['break', 'longbreak', 'prep'].includes(S.mode)) resumeWork(now); }
+  else if (action === 'exercise') { if (S.mode !== 'done') startExercise(now); }
+  else if (action === 'skip_exercise') skipExercise(now);
+  else if (action === 'end') endResearch(now);
+  else if (action === 'start') startResearch(now);
+  window.focus();
+}
+
+/* ---------- tick ---------- */
+function tick() {
+  const now = Date.now();
+  if (!S || S.day !== dayKey(now)) { if (S && S.started && !S.endedAt) saveHistory(); S = freshState(now); save(); }
+  checkDue(now); render(false);
+}
+function checkDue(now) {
+  const paused = !!S.pausedAt;
+  const ex = exerciseToday(now);
+  const exDue = ex && !S.exerciseDone && !S.exerciseSkipped && S.mode !== 'exercise' && S.mode !== 'done' && now >= ex.start && now < ex.start + (CFG.exercise_window_minutes || 60) * 60000;
+
+  // 1) exercise: highest priority
+  if (exDue) {
+    notify('exercise', `${fmtClock(new Date(ex.start))} 運動の時間！`, ex.message || `${ex.name}の時間だよ。`,
+      [{ action: 'exercise', title: '運動開始' }, { action: 'skip_exercise', title: '今日はなし' }],
+      { max: (CFG.renotify_max || 2) + 1, renotifyBody: `${ex.name}、準備できたら［運動開始］を押してね。`, say: ex.message || pick(L('exercise_due')), renotifySay: pick(L('exercise_due')) });
+  }
+  // 2) work / break cycle
+  if (!paused && S.target && now >= S.target) {
+    if (S.mode === 'working') {
+      if (!S.suggestion) { S.suggestion = pickSuggestion(); S.lastSuggestion = S.suggestion; save(); }
+      notify('due:break', `${CFG.work_minutes}分おつかれ！休憩しよう`, `休憩の提案：${S.suggestion}`,
+        [{ action: 'break', title: '休憩開始' }, { action: 'extend', title: `${CFG.extend_minutes}分延長` }],
+        { max: (CFG.renotify_max || 2) + 1, renotifyBody: `${pick(L('break_renotify'))}　提案：${S.suggestion}`, say: `${pick(L('break_due'))}　→ ${S.suggestion}`, renotifySay: pick(L('break_renotify')) });
+    } else if (S.mode === 'break') {
+      const l = pick(L('resume_due'));
+      notify('due:resume', '休憩おしまい！研究再開', l, [{ action: 'resume', title: '作業再開' }],
+        { max: (CFG.renotify_max || 2) + 1, renotifyBody: pick(L('resume_renotify')), say: l, renotifySay: pick(L('resume_renotify')) });
+    } else if (S.mode === 'exercise') {
+      notify('due:exdone', '運動おつかれ！', '水分をとって、［運動終了］を押したら研究の準備に入ろう。', [{ action: 'exercise_done', title: '運動終了' }], { max: 1, say: pick(L('exercise_done')) });
+    }
+  }
+  // 3) fixed timetable (soft) entries, fired once each within their minute
+  for (const t of timetableToday(now)) {
+    if (t.notify === false || t.kind === 'exercise') continue;
+    if (now < t.ts || now > t.ts + 90000) continue;
+    const key = `tt:${t.time}`; if (S.notified[key]) continue;
+    if (t.kind === 'research_start') { if (S.started) { S.notified[key] = { count: 1 }; continue; } notify(key, `${t.time} 研究開始の時間`, '準備ができたら［研究開始］を押してね。だいちゃーじ！', [{ action: 'start', title: '研究開始' }]); }
+    else if (t.kind === 'research_resume') { if (['working', 'done', 'exercise'].includes(S.mode)) { S.notified[key] = { count: 1 }; continue; } notify(key, `${t.time} 研究再開の時間`, '次の50分、いこう！', [{ action: 'resume', title: '研究再開' }]); }
+    else if (t.kind === 'research_end') { if (!S.started || S.mode === 'done') { S.notified[key] = { count: 1 }; continue; } const l = pick(L('research_end_due')); notify(key, `${t.time} 研究終了の時間`, l, [{ action: 'end', title: '研究終了' }], { say: l }); }
+    else if (t.long_break) { if (S.mode === 'done' || !S.started) { S.notified[key] = { count: 1 }; continue; } notify(key, `${t.time} ${t.label}`, S.mode === 'working' ? 'きりのいいところで［休憩開始］を押してね。長めの休憩になるよ。' : 'ゆっくり休もう。', S.mode === 'working' ? [{ action: 'break', title: '休憩開始' }] : [], { say: `${t.time}、${t.label}の時間だよ。` }); }
+    else { if (S.mode === 'done' && t.ts < (S.endedAt || 0)) { S.notified[key] = { count: 1 }; continue; } const exNext = exerciseToday(now); notify(key, `${t.time} ${t.label}`, t.kind === 'prep' ? `起きて、水分補給！${exNext ? fmtClock(new Date(exNext.start)) + 'から運動だよ。' : ''}` : `${t.label}の時間だよ。`, [], { say: t.kind === 'prep' ? '起きて水分補給！このあと運動だよ。' : `${t.label}の時間だよ。` }); }
+  }
+  // 4) calendar events
+  const lead = (CFG.calendar_notice_minutes || 10) * 60000;
+  for (const e of eventsToday(now)) {
+    const key = `cal:${e.start}:${e.title}`; if (S.notified[key]) continue;
+    if (now >= e.start - lead && now < e.start + 60000) notify(key, `${fmtMin(Math.max(0, e.start - now)) || '0分'}後：${e.title}`, `${fmtClock(new Date(e.start))}〜${fmtClock(new Date(e.end))}の予定だよ。`, [], { say: `${fmtClock(new Date(e.start))}から「${e.title}」だよ。` });
+  }
+}
+
+/* ---------- rendering ---------- */
+let lastPose = '', lastLine = '';
+function render(force) {
+  const now = Date.now(), d = new Date(now);
+  $('#clock', root).textContent = fmtClock(d);
+  const base = todayDate(now);
+  $('#dow', root).textContent = `${base.getMonth() + 1}/${base.getDate()}（${DOW[base.getDay()]}）`;
+  const paused = !!S.pausedAt, muted = now < (S.muteUntil || 0);
+  const elapsed = (paused ? S.pausedAt : now) - S.since - S.pausedTotal;
+  const ex = exerciseToday(now);
+  const exDue = ex && !S.exerciseDone && !S.exerciseSkipped && S.mode !== 'exercise' && S.mode !== 'done' && now >= ex.start && now < ex.start + (CFG.exercise_window_minutes || 60) * 60000;
+  const badge = $('#badge', root), cur = $('#cur', root), el = $('#elapsed', root), elVal = $('#elapsedVal', root), elLabel = $('#elapsedLabel', root);
+  const names = { idle: ['待機中', '—'], working: ['研究中', '研究・執筆'], break: ['休憩中', '休憩'], longbreak: ['休憩中', S.slotLabel || '昼食・休息'], exercise: ['運動中', ex ? ex.name : '運動'], prep: ['準備中', '運動終了・研究準備'], done: ['研究終了', '今日はおしまい'] };
+  const [bt, ct] = names[S.mode] || names.idle;
+  badge.textContent = (paused ? '一時停止 ' : '') + bt + (muted ? ' 🔕' : ''); badge.className = 'badge ' + S.mode;
+  cur.textContent = ct;
+  let pose = { idle: 'idle', working: 'work', break: 'break', longbreak: 'sleep', exercise: 'ex', prep: 'prep', done: 'sleep' }[S.mode] || 'idle';
+  if (exDue) pose = 'ex'; if (paused) pose = 'idle';
+  if (S.mode === 'idle' || S.mode === 'done' || S.mode === 'prep') { elVal.textContent = ''; elLabel.textContent = ''; el.style.display = 'none'; }
+  else { el.style.display = ''; elVal.textContent = fmtDur(elapsed); elLabel.textContent ={ working: '作業経過', break: '休憩経過', longbreak: '休憩経過', exercise: '運動経過' }[S.mode] || ''; }
+
+  // next line
+  const nm = $('#nextMain', root), ns = $('#nextSub', root), nc = $('#nextCal', root), bar = $('#bar', root);
+  let main = '', sub = '', pct = 0, over = false;
+  if (S.mode === 'working' && S.target) { const r = S.target - now; main = r >= 0 ? `あと ${fmtDur(r)} で休憩` : `休憩の時間だよ。きりのいいところで！`; pct = Math.min(1, elapsed / (S.target - S.since + S.pausedTotal)); over = r < 0; }
+  else if (S.mode === 'break' && S.target) { const r = S.target - now; main = r >= 0 ? `あと ${fmtDur(r)} で研究再開` : `研究再開の時間だよ`; pct = Math.min(1, elapsed / (S.target - S.since + S.pausedTotal)); over = r < 0; }
+  else if (S.mode === 'longbreak') { const overLong = S.target && now >= S.target; main = overLong ? '起きて水分補給。このあと運動！' : (S.target ? `${fmtClock(new Date(S.target))} まで休憩` : '休憩中'); pct = S.target ? Math.min(1, (now - S.since) / (S.target - S.since)) : 0; }
+  else if (S.mode === 'exercise' && S.target) { const r = S.target - now; main = r >= 0 ? `あと ${fmtDur(r)} で運動終了` : '目安の時間は過ぎたよ。きりがよければ終了！'; pct = Math.min(1, elapsed / (S.target - S.since + S.pausedTotal)); over = r < 0; }
+  else if (S.mode === 'prep') { main = '水分補給して、研究再開の準備'; }
+  else if (S.mode === 'done') { main = `今日の研究は終了。おつかれさま！`; }
+  else { main = S.started ? '準備ができたら再開しよう' : '［研究開始］で今日をスタート'; }
+  if (exDue) main = '運動の時間！準備ができたら［運動開始］';
+  if (paused) main = '一時停止中';
+  if (S.mode === 'working' && S.extended && !over) sub = `${CFG.extend_minutes * S.extended}分延長中`;
+  // upcoming fixed items (chronological): next timetable entry + today's exercise slot
+  const upcoming = timetableToday(now).filter(t => t.ts > now && t.kind !== 'wake' && t.kind !== 'exercise').slice(0, 1)[0];
+  const parts = [];
+  if (upcoming) parts.push({ ts: upcoming.ts, text: `${upcoming.time} ${upcoming.label}` });
+  if (exDue) parts.unshift({ ts: 0, text: `${fmtClock(new Date(ex.start))}の枠：${ex.name}（最優先）` });
+  else if (ex && !S.exerciseDone && !S.exerciseSkipped && S.mode !== 'exercise') {
+    if (ex.flex) parts.push({ ts: ex.start, text: `運動：${ex.name}（${ex.flex}）` });
+    else if (now < ex.start) parts.push({ ts: ex.start, text: `${fmtClock(new Date(ex.start))} 運動：${ex.name}${ex.shiftedBy ? `（「${ex.shiftedBy}」の後にずらしたよ）` : ''}` });
+  }
+  else if (ex && S.exerciseDone) parts.push({ ts: 1e15, text: `運動：${ex.name} ✓` });
+  else if (ex && S.exerciseSkipped) parts.push({ ts: 1e15, text: `運動：今日はなし` });
+  else if (!ex) { const e0 = (CFG.exercise || {})[String(base.getDay())]; if (e0 && !S.exerciseDone) parts.push({ ts: 1e15, text: `運動：${e0.name}` }); }
+  parts.sort((a, b) => a.ts - b.ts);
+  const subLine = parts.map(p => p.text).join('　｜　');
+  nm.textContent = main; ns.textContent = sub ? `${sub}　｜　${subLine}` : subLine;
+  // calendar: prefer the next upcoming event; otherwise the ongoing one
+  const evs = eventsToday(now).filter(e => e.end > now);
+  if (!todayDataValid(now)) nc.innerHTML = TODAY ? '<span class="muted">カレンダー：今日のデータは未更新</span>' : '';
+  else if (!evs.length) nc.textContent = 'カレンダー：この後の予定なし';
+  else { const up = evs.find(e => e.start > now), e = up || evs[0]; const ongoing = e.start <= now; const others = evs.filter(x => x !== e); nc.innerHTML = `カレンダー：<span>${ongoing ? '進行中 ' : fmtClock(new Date(e.start)) + ' '}${escapeHtml(e.title)}</span>${others.length ? `　${others.length === 1 && others[0].start <= now ? '（進行中：' + escapeHtml(others[0].title) + '）' : '他' + others.length + '件'}` : ''}`; }
+  bar.classList.toggle('over', over); bar.querySelector('i').style.width = `${Math.round(pct * 100)}%`;
+  bar.style.visibility = (S.mode === 'idle' || S.mode === 'done' || S.mode === 'prep') ? 'hidden' : 'visible';
+
+  // buttons
+  const acts = $('#actions', root); let html = '';
+  const dueBreak = S.mode === 'working' && S.target && now >= S.target;
+  const endEntry = timetableToday(now).find(t => t.kind === 'research_end');
+  const endDue = S.started && S.mode !== 'done' && endEntry && now >= endEntry.ts;
+  if (paused) html = `<button class="btn" data-act="pause">再開する</button>`;
+  else if (exDue) html = `<button class="btn" data-act="exercise">運動開始</button>`;
+  else if (S.mode === 'idle') html = `<button class="btn" data-act="start">${S.started ? '研究再開' : '研究開始'}</button>`;
+  else if (S.mode === 'working') html = `<button class="btn" data-act="break">休憩開始</button>${dueBreak ? `<button class="btn sec" data-act="extend">${CFG.extend_minutes}分延長</button>` : ''}`;
+  else if (S.mode === 'break' || S.mode === 'longbreak' || S.mode === 'prep') html = `<button class="btn" data-act="resume">作業再開</button>`;
+  else if (S.mode === 'exercise') html = `<button class="btn" data-act="exercise_done">運動終了</button>`;
+  else if (S.mode === 'done') html = `<button class="btn sec" data-act="start">もう少し研究する</button><button class="btn end" data-act="summary">まとめを見る</button>`;
+  if (endDue && !exDue && !paused) html += `<button class="btn sec end" data-act="end">研究終了</button>`;
+  if (acts.dataset.html !== html) { acts.innerHTML = html; acts.dataset.html = html; }
+
+  // penguin + bubble
+  const pg = $('#pg', root); if (pose !== lastPose) { pg.className = 'pg pose-' + pose; lastPose = pose; }
+  if (!S.line || (now - (S.lineAt || 0) > 90000 && !dueBreak && !exDue)) {
+    const key = { idle: S.started ? 'idle' : 'idle', working: 'working', break: 'breaking', longbreak: 'long_break', exercise: 'exercising', prep: 'exercise_done', done: 'done' }[S.mode] || 'idle';
+    const l = pick(L(key), S.line); if (l) { S.line = l; S.lineAt = now; save(); }
+  }
+  if (S.line !== lastLine) { $('#bubble', root).textContent = S.line; lastLine = S.line; }
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* ---------- panels ---------- */
+function openPanel(id) { closePanels(); $('#' + id, root).classList.add('show'); }
+function closePanels() { root.querySelectorAll('.panel').forEach(p => p.classList.remove('show')); }
+function showMenu() {
+  const now = Date.now(); const b = $('#menuBody', root); const paused = !!S.pausedAt;
+  const items = [];
+  if (S.mode === 'working') items.push(['extend', `作業を${CFG.extend_minutes}分延長`]);
+  if (['working', 'break', 'exercise', 'longbreak'].includes(S.mode)) items.push(['pause', paused ? '一時停止を解除' : 'タイマーを一時停止']);
+  if (S.mode !== 'done') { if (!S.exerciseDone && S.mode !== 'exercise') items.push(['exercise', '今から運動する']); if (!S.exerciseSkipped && !S.exerciseDone) items.push(['skip_exercise', '今日の運動はなしにする']); }
+  items.push(['mute30', now < (S.muteUntil || 0) ? '通知ミュートを解除' : '通知を30分ミュート']);
+  items.push(['sep']);
+  items.push(['list', '今日のリスト']);
+  if (S.started && S.mode !== 'done') items.push(['end', '研究終了（今日のまとめ）']);
+  if (S.mode === 'done') items.push(['summary', '今日のまとめを見る']);
+  items.push(['settings', '設定を見る', '変更はチャットで']);
+  items.push(['theme', 'テーマ切替', `現在：${{ auto: '自動', light: 'ライト', dark: 'ダーク' }[document.documentElement.dataset.theme] || '自動'}`]);
+  items.push(['pip', '小窓で常に最前面に表示']);
+  items.push(['perm', '通知の許可状態を確認']);
+  items.push(['sep']);
+  items.push(['reset', '今日の状態をリセット', '間違えて押したとき用']);
+  b.innerHTML = items.map(([k, t, s]) => k === 'sep' ? '<div class="sep"></div>' : `<button data-m="${k}">${t}${s ? `<small>${s}</small>` : ''}</button>`).join('');
+  openPanel('menuPanel');
+}
+function showList(title) {
+  const now = Date.now(); const b = $('#listBody', root); $('#listTitle', root).textContent = title || '今日のリスト';
+  const ex = exerciseToday(now); const e0 = (CFG.exercise || {})[String(todayDate(now).getDay())];
+  const valid = todayDataValid(now);
+  let h = `<div style="margin-bottom:8px">${escapeHtml(pick(L('start')) || 'だいちゃーじ！')}</div>`;
+  if (valid && TODAY.focus) h += `<h4>今日の軸</h4><div>${escapeHtml(TODAY.focus)}</div>`;
+  h += `<h4>今日のタスク</h4>`;
+  if (valid && Array.isArray(TODAY.tasks) && TODAY.tasks.length) {
+    h += `<div class="tasks">` + TODAY.tasks.map((t, i) => `<label><input type="checkbox" data-task="${i}" ${S.tasksDone.includes(i) ? 'checked' : ''}><span class="${S.tasksDone.includes(i) ? 'done' : ''}">${escapeHtml(t)}</span></label>`).join('') + `</div>`;
+  } else h += `<div class="muted">今日のタスクはまだ届いていないよ（毎朝Claudeが書き込むよ）。</div>`;
+  h += `<h4>運動</h4><div>${e0 ? escapeHtml(e0.name) : '—'}${ex ? `　<span class="muted">${fmtClock(new Date(ex.start))}〜${fmtClock(new Date(ex.end))}${ex.flex ? '（' + escapeHtml(ex.flex) + '）' : ''}</span>` : ''}${ex && ex.shiftedBy ? `<div class="muted">「${escapeHtml(ex.shiftedBy)}」と重なるので、その後にずらしたよ</div>` : ''}</div>`;
+  h += `<h4>カレンダー</h4>`;
+  const evs = valid ? eventsToday(now) : [];
+  h += evs.length ? evs.map(e => `<div class="ev"><span class="t">${fmtClock(new Date(e.start))}〜${fmtClock(new Date(e.end))}</span><span>${escapeHtml(e.title)}</span></div>`).join('') : `<div class="muted">${valid ? '今日の予定はなし' : '今日のデータは未更新'}</div>`;
+  h += `<h4>時間割</h4><table class="tt">` + timetableToday(now).map(t => `<tr><td>${t.time}</td><td class="${t.fixed ? 'fixed' : ''}">${escapeHtml(t.label)}${t.fixed ? '（固定）' : ''}</td></tr>`).join('') + `</table>`;
+  b.innerHTML = h;
+  b.querySelectorAll('input[data-task]').forEach(cb => cb.onchange = () => { const i = +cb.dataset.task; S.tasksDone = S.tasksDone.filter(x => x !== i); if (cb.checked) S.tasksDone.push(i); save(); cb.nextElementSibling.className = cb.checked ? 'done' : ''; });
+  openPanel('listPanel');
+}
+function summarize(now) {
+  const log = S.log.slice(); if (['working', 'break', 'longbreak', 'exercise'].includes(S.mode)) log.push({ kind: S.mode, from: S.since, to: S.pausedAt || now, paused: S.pausedTotal });
+  const sum = k => log.filter(x => x.kind === k).reduce((a, x) => a + (x.to - x.from - (x.paused || 0)), 0);
+  const work = sum('working'), brk = sum('break'), ex = sum('exercise'), longb = sum('longbreak');
+  const cycles = log.filter(x => x.kind === 'working').length, breaks = log.filter(x => x.kind === 'break').length;
+  const longest = log.filter(x => x.kind === 'working').reduce((a, x) => Math.max(a, x.to - x.from - (x.paused || 0)), 0);
+  return { work, brk, ex, longb, cycles, breaks, longest };
+}
+function showSummary() {
+  const now = Date.now(); const b = $('#sumBody', root); const s = summarize(now); const valid = todayDataValid(now);
+  const e0 = (CFG.exercise || {})[String(todayDate(now).getDay())];
+  let h = `<div style="margin-bottom:8px">${escapeHtml(pick(L('end')) || '今日もおつかれさま！')}</div>`;
+  h += `<div class="stat"><div><b>${fmtMin(s.work)}</b><span>研究時間（合計）</span></div><div><b>${s.cycles}</b><span>作業サイクル</span></div><div><b>${s.breaks}回</b><span>短い休憩</span></div><div><b>${s.longest ? fmtMin(s.longest) : '—'}</b><span>いちばん長い集中</span></div></div>`;
+  h += `<h4>運動</h4><div>${S.exerciseDone ? `${escapeHtml(e0 ? e0.name : '運動')} ✓（${fmtMin(s.ex)}）` : (S.exerciseSkipped ? '今日はなし' : (e0 && e0.start ? '今日は未実施。また明日の枠でね。' : (e0 ? escapeHtml(e0.name) : '—')))}</div>`;
+  if (S.startedAt) h += `<h4>時間</h4><div>${fmtClock(new Date(S.startedAt))} 開始 → ${fmtClock(new Date(S.endedAt || now))} 終了</div>`;
+  if (valid && Array.isArray(TODAY.tasks) && TODAY.tasks.length) {
+    const done = TODAY.tasks.filter((t, i) => S.tasksDone.includes(i));
+    h += `<h4>今日進めたこと</h4>` + (done.length ? `<div class="tasks">${done.map(t => `<div>✓ ${escapeHtml(t)}</div>`).join('')}</div>` : `<div class="muted">チェックはなし。進めた内容は明日の朝のメッセージに返信で教えてね。</div>`);
+  }
+  h += `<h4>この後</h4><div>${timetableToday(now).filter(t => t.ts > now).map(t => `${t.time} ${escapeHtml(t.label)}`).join('　/　') || 'ゆっくり休もう'}</div>`;
+  b.innerHTML = h; openPanel('sumPanel');
+}
+function showSettings() {
+  const b = $('#setBody', root);
+  let h = `<div class="muted" style="margin-bottom:8px">設定の変更はチャットで「作業時間を45分にして」「金曜の運動をピラティスに変えて」のように伝えてね。</div>`;
+  h += `<h4>タイマー</h4><div>作業 ${CFG.work_minutes}分 / 休憩 ${CFG.break_minutes}分 / 延長 ${CFG.extend_minutes}分<br>再通知 ${CFG.renotify_minutes}分おき・最大${CFG.renotify_max}回 / 運動の呼びかけ ${CFG.exercise_window_minutes}分まで</div>`;
+  h += `<h4>時間割</h4><table class="tt">` + (CFG.timetable || []).map(t => `<tr><td>${t.time}</td><td class="${t.fixed ? 'fixed' : ''}">${escapeHtml(t.label)}${t.fixed ? '（固定）' : ''}${t.notify === false ? '<span class="muted">（通知なし）</span>' : ''}</td></tr>`).join('') + `</table>`;
+  h += `<h4>運動メニュー</h4><table class="tt">` + [1, 2, 3, 4, 5, 6, 0].map(d => { const e = (CFG.exercise || {})[String(d)]; return `<tr><td>${DOW[d]}</td><td>${e ? escapeHtml(e.name) + (e.start ? `<span class="muted"> ${e.start}〜${e.end || ''}</span>` : '') : '—'}</td></tr>`; }).join('') + `</table>`;
+  h += `<h4>データ</h4><div class="muted">設定：config.json ／ 今日のデータ：data/today.json${TODAY && TODAY.generated_at ? `（更新 ${TODAY.generated_at.slice(0, 16).replace('T', ' ')}）` : ''}</div>`;
+  b.innerHTML = h; openPanel('setPanel');
+}
+function saveHistory() {
+  try { const s = summarize(Date.now()); const hist = JSON.parse(localStorage.getItem(LS_HIST) || '[]').filter(x => x.day !== S.day); hist.push({ day: S.day, work: s.work, cycles: s.cycles, breaks: s.breaks, exercise: S.exerciseDone, tasksDone: S.tasksDone.length }); localStorage.setItem(LS_HIST, JSON.stringify(hist.slice(-60))); } catch (e) { }
+}
+
+/* ---------- friends (cameo) ---------- */
+const FRIENDS = [
+  `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="34" rx="22" ry="20" fill="#f6d84a" stroke="#1e2c44" stroke-width="2.5"/><path d="M8 30 c-6 -2 -8 6 -2 10z" fill="#f6d84a" stroke="#1e2c44" stroke-width="2.5"/><path d="M30 14 l-4 -8 l6 5 l3 -7 l1 9z" fill="#f6d84a" stroke="#1e2c44" stroke-width="2"/><circle cx="24" cy="32" r="2.6" fill="#1e2c44"/><circle cx="36" cy="32" r="2.6" fill="#1e2c44"/><path d="M27 40 l6 0 l-3 4z" fill="#f29a3a" stroke="#1e2c44" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  `<svg viewBox="0 0 60 60"><path d="M30 6 l6 7 l9 -3 l1 9 l9 3 l-5 7 l5 8 l-9 2 l-1 9 l-9 -3 l-6 7 l-6 -7 l-9 3 l-1 -9 l-9 -2 l5 -8 l-5 -7 l9 -3 l1 -9 l9 3z" fill="#f2a5c0" stroke="#1e2c44" stroke-width="2.5" stroke-linejoin="round"/><ellipse cx="30" cy="33" rx="14" ry="13" fill="#fff3e6" stroke="#1e2c44" stroke-width="2.5"/><path d="M22 27 l6 3" stroke="#1e2c44" stroke-width="2.5" stroke-linecap="round"/><path d="M38 27 l-6 3" stroke="#1e2c44" stroke-width="2.5" stroke-linecap="round"/><circle cx="25" cy="32" r="2.2" fill="#1e2c44"/><circle cx="35" cy="32" r="2.2" fill="#1e2c44"/><ellipse cx="30" cy="38" rx="3" ry="2" fill="#1e2c44"/><circle cx="47" cy="40" r="2.5" fill="none" stroke="#f3c94a" stroke-width="2"/></svg>`,
+  `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="34" rx="18" ry="17" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><ellipse cx="12" cy="36" rx="7" ry="12" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><ellipse cx="48" cy="36" rx="7" ry="12" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><circle cx="24" cy="16" r="6" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><circle cx="36" cy="16" r="6" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><ellipse cx="30" cy="40" rx="9" ry="7" fill="#fff" stroke="#1e2c44" stroke-width="2.5"/><circle cx="24" cy="31" r="2.4" fill="#1e2c44"/><circle cx="36" cy="31" r="2.4" fill="#1e2c44"/><ellipse cx="30" cy="38" rx="3" ry="2.2" fill="#1e2c44"/></svg>`,
+  `<svg viewBox="0 0 60 60"><path d="M30 8 c-16 0 -22 12 -22 24 c0 10 6 18 12 20 c3 1 4 -3 6 -3 c3 0 3 4 6 3 c7 -2 14 -10 14 -20 c0 -12 -6 -24 -16 -24z" fill="#ffffff" stroke="#1e2c44" stroke-width="2.5"/><circle cx="24" cy="30" r="2.6" fill="#1e2c44"/><circle cx="36" cy="30" r="2.6" fill="#1e2c44"/><path d="M26 38 q4 3 8 0" stroke="#1e2c44" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="18" cy="36" r="2.5" fill="#f7b7c6"/><circle cx="42" cy="36" r="2.5" fill="#f7b7c6"/></svg>`
+];
+let friendTimer = null;
+function showFriend() {
+  const f = $('#friend', root); f.innerHTML = FRIENDS[Math.floor(Math.random() * FRIENDS.length)];
+  requestAnimationFrame(() => f.classList.add('show'));
+  clearTimeout(friendTimer); friendTimer = setTimeout(() => f.classList.remove('show'), 12000);
+  setTimeout(() => say('友だちも応援に来たよ！いっしょに体を動かそう！'), 1200);
+}
+
+/* ---------- picture-in-picture (always on top) ---------- */
+async function openPip() {
+  if (!('documentPictureInPicture' in window)) {
+    say('このブラウザは小窓（常に最前面）に未対応。Edge/Chrome 116以降で使えるよ。代わりに「アプリとしてインストール」して小さなウィンドウにしてね。'); return;
+  }
+  if (pipWin) { pipWin.focus(); return; }
+  try {
+    pipWin = await documentPictureInPicture.requestWindow({ width: 320, height: 430 });
+  } catch (e) { say('小窓を開けなかったよ。もう一度ボタンを押してみてね。'); return; }
+  const doc = pipWin.document;
+  doc.documentElement.lang = 'ja'; doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
+  for (const ss of document.styleSheets) { try { const st = doc.createElement('style'); st.textContent = [...ss.cssRules].map(r => r.cssText).join('\n'); doc.head.appendChild(st); } catch (e) { } }
+  doc.body.className = 'pip'; doc.body.append($('#app'));
+  root = doc; wire(doc); lastPose = ''; lastLine = ''; render(true); renderHint();
+  const host = document.body;
+  host.insertAdjacentHTML('beforeend', `<div id="pipNote" style="text-align:center;color:var(--muted);padding:40px 16px;font-size:14px">小窓で表示中だよ。<br>このタブは閉じずに最小化してOK。<br><button id="pipBack" class="btn" style="margin-top:14px;flex:none">ここに戻す</button></div>`);
+  $('#pipBack').onclick = () => pipWin && pipWin.close();
+  pipWin.addEventListener('pagehide', () => { document.body.append($('#app', doc)); $('#pipNote')?.remove(); root = document; wire(document); pipWin = null; lastPose = ''; lastLine = ''; render(true); renderHint(); });
+}
+
+/* ---------- wiring ---------- */
+function wire(doc) {
+  const app = $('#app', doc); if (app.dataset.wired === String(doc === document ? 1 : 2)) return;
+  app.dataset.wired = doc === document ? 1 : 2;
+  app.addEventListener('click', ev => {
+    const t = ev.target.closest('button'); if (!t) return;
+    const now = Date.now();
+    if (t.hasAttribute('data-close')) { closePanels(); return; }
+    if (t.id === 'btnMenu') { showMenu(); return; }
+    if (t.id === 'btnPip') { openPip(); return; }
+    const act = t.dataset.act || t.dataset.m; if (!act) return;
+    if (!audioCtx && CFG.sound) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+    ensurePermission();
+    closePanels();
+    switch (act) {
+      case 'start': startResearch(now); break;
+      case 'break': startBreak(now); break;
+      case 'resume': resumeWork(now); break;
+      case 'extend': extendWork(now); break;
+      case 'exercise': startExercise(now); break;
+      case 'exercise_done': endExercise(now); break;
+      case 'skip_exercise': skipExercise(now); break;
+      case 'pause': togglePause(now); break;
+      case 'mute30': if (now < (S.muteUntil || 0)) { S.muteUntil = 0; say('通知を再開するね。'); save(); render(true); } else mute(now, 30); break;
+      case 'end': endResearch(now); break;
+      case 'summary': showSummary(); break;
+      case 'list': showList('今日のリスト'); break;
+      case 'settings': showSettings(); break;
+      case 'theme': { const cur = document.documentElement.dataset.theme || 'auto'; const nx = { auto: 'dark', dark: 'light', light: 'auto' }[cur]; setTheme(nx); break; }
+      case 'pip': openPip(); break;
+      case 'perm': ensurePermission(); say(('Notification' in window) ? ({ granted: '通知はオンだよ！', denied: '通知がブロックされてるみたい。ブラウザの設定で許可してね。', default: '通知の許可を求めたよ。' }[Notification.permission]) : '通知に未対応のブラウザだよ。'); break;
+      case 'reset': if (confirm('今日の状態（タイマーと記録）をリセットする？')) { S = freshState(now); save(); render(true); say('リセットしたよ。'); } break;
+    }
+  });
+}
+function setTheme(t) { document.documentElement.dataset.theme = t; if (pipWin) pipWin.document.documentElement.dataset.theme = t; try { localStorage.setItem(LS_THEME, t); } catch (e) { } }
+
+/* ---------- boot ---------- */
+async function loadJson(path) { try { const r = await fetch(path + '?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw 0; return await r.json(); } catch (e) { return null; } }
+async function refreshData() {
+  const c = await loadJson('config.json'); if (c) CFG = { ...DEFAULT_CFG, ...c };
+  const t = await loadJson('data/today.json'); if (t) TODAY = t;
+}
+async function boot() {
+  try { setTheme(localStorage.getItem(LS_THEME) || 'auto'); } catch (e) { }
+  CFG = DEFAULT_CFG;
+  await refreshData();
+  const now = Date.now();
+  S = load(); if (!S || S.day !== dayKey(now)) S = freshState(now);
+  save();
+  wire(document); render(true); renderHint();
+  // service worker: only for notification buttons (no caching)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    try { swReg = await navigator.serviceWorker.register('sw.js'); navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'notification-action') handleAction(e.data.action); }); } catch (e) { swReg = null; }
+  }
+  const qa = new URLSearchParams(location.search).get('action'); if (qa) { handleAction(qa); history.replaceState(null, '', location.pathname); }
+  // ticking: a worker keeps ticking even when the tab is in the background
+  try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(1),1000)'], { type: 'text/javascript' }))); w.onmessage = tick; } catch (e) { }
+  setInterval(tick, 1000);
+  setInterval(refreshData, 10 * 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); refreshData(); } });
+  if ($('#btnPip')) $('#btnPip').style.display = ('documentPictureInPicture' in window) ? '' : 'none';
+}
+window.__lr = { get S() { return S; }, get CFG() { return CFG; }, tick, handleAction, exerciseToday, timetableToday };
+boot();
+})();
+</script>
+</body>
+</html>

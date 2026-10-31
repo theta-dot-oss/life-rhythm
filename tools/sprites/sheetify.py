@@ -77,15 +77,16 @@ def bands(mask, axis, small_frac=0.35):
     big = [w for w in widths if w >= 0.5 * widths[-1]]
     typical = big[len(big) // 2]
     small = typical * small_frac
-    out = []
-    for r in runs:
-        if r[1] - r[0] >= small or not out:
-            out.append(list(r))
-        else:
-            out[-1][1] = r[1]  # attach fragment to the run on its left
-    # a leading fragment: attach to the run on its right
-    if len(out) > 1 and out[0][1] - out[0][0] < small:
-        out[1][0] = out[0][0]; out.pop(0)
+    bigs = [i for i, r in enumerate(runs) if r[1] - r[0] >= small]
+    if not bigs:
+        return [[runs[0][0], runs[-1][1]]]
+    out = [list(runs[i]) for i in bigs]
+    for i, r in enumerate(runs):
+        if i in bigs:
+            continue
+        # attach the fragment to the nearer big run
+        best = min(range(len(bigs)), key=lambda k: min(abs(r[0] - runs[bigs[k]][1]), abs(runs[bigs[k]][0] - r[1])))
+        out[best][0] = min(out[best][0], r[0]); out[best][1] = max(out[best][1], r[1])
     return [r for r in out if r[1] - r[0] >= 8]
 
 def tight(a, x0, y0, x1, y1):
@@ -181,8 +182,9 @@ def main():
         feet = round(body_bottom(f) * scale)
         canvas = Image.new("RGBA", (args.cell, args.cell), (0, 0, 0, 0))
         # horizontal centre on the body (opaque pixels with alpha>200), vertical: feet on baseline
-        arr = np.asarray(f2)[..., 3] > 200
-        xs = np.where(arr.any(axis=0))[0]
+        # centre on the dense columns (the body), ignoring thin effects beside it
+        occ = (np.asarray(f2)[..., 3] > 200).sum(axis=0)
+        xs = np.where(occ >= occ.max() * 0.25)[0] if occ.max() else []
         cx = (xs.min() + xs.max()) / 2 if len(xs) else f2.width / 2
         ox = round(args.cell / 2 - cx)
         oy = base_y - feet

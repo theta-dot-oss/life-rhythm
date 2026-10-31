@@ -707,11 +707,38 @@ async function loadSets() {
 async function saveSet(s) {
   if (!SETS.includes(s)) SETS.push(s); preload(s);
   const db = await idb(); if (!db) return false;
-  return !!(await idbRun(db, 'readwrite', st => st.put({ id: s.id, name: s.name, tag: s.tag, frames: s.frames, at: s.at })));
+  return !!(await idbRun(db, 'readwrite', st => st.put({ id: s.id, name: s.name, tag: s.tag, frames: s.frames, at: s.at, fps: s.fps || null, pp: s.pp !== false, builtin: s.builtin || null })));
 }
 async function deleteSet(id) {
   SETS = SETS.filter(s => s.id !== id); if (play.setId === id) play.setId = null;
+  // a deleted built-in animation stays deleted until 「同梱のアニメを入れ直す」
+  if (id.startsWith('b:')) { try { const d = JSON.parse(localStorage.getItem('lr_builtin_deleted') || '[]'); if (!d.includes(id.slice(2))) d.push(id.slice(2)); localStorage.setItem('lr_builtin_deleted', JSON.stringify(d)); } catch (e) { } }
   const db = await idb(); if (db) await idbRun(db, 'readwrite', st => st.delete(id));
+}
+// animations shipped with the app (sprites/manifest.json: [{name, file, state, name_ja?, version?, fps?, pingpong?}]) are
+// imported once into the same store as the user's own, so they can be renamed, retagged or deleted like any other
+async function loadBuiltinSets(force) {
+  let man; try { const r = await fetch('sprites/manifest.json', { cache: 'no-store' }); if (!r.ok) return 0; man = await r.json(); } catch (e) { return 0; }
+  if (!Array.isArray(man)) return 0;
+  let deleted = []; try { deleted = JSON.parse(localStorage.getItem('lr_builtin_deleted') || '[]'); } catch (e) { }
+  if (force) { deleted = []; try { localStorage.setItem('lr_builtin_deleted', '[]'); } catch (e) { } }
+  let added = 0;
+  for (const e of man) {
+    if (!e || !e.file || !e.name) continue;
+    const key = e.name + ':' + (e.version || e.frames || 1), id = 'b:' + e.name, old = SETS.find(s => s.id === id);
+    if ((old && old.builtin === key) || (!old && deleted.includes(e.name))) continue;
+    try {
+      const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'sprites/' + e.file + '?v=' + encodeURIComponent(key); });
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+      clearOuterWhite(g, c.width, c.height);
+      const boxes = splitSheet(g, c.width, c.height), frames = frameImages(c, boxes.length ? boxes : [tightBox(g, c.width, c.height)], 320);
+      const s = old || { id, at: Date.now(), tag: TAGS[e.state] ? e.state : 'any', name: e.name_ja || e.name, fps: +e.fps || null, pp: e.pingpong !== false };
+      Object.assign(s, { frames, builtin: key, _els: null });
+      if (await saveSet(s)) added++;
+    } catch (err) { }
+  }
+  if (added) { SETS.sort((a, b) => (a.at || 0) - (b.at || 0)); applyCustomImage(true); }
+  return SETS.filter(s => s.builtin).length;
 }
 function setsFor(pose) {
   const tag = { work: 'work', break: 'break', ex: 'ex', sleep: 'sleep', happy: 'happy' }[pose] || 'any';
@@ -719,28 +746,31 @@ function setsFor(pose) {
   return pool;
 }
 function customImage() { return curImg; }
+// frames per second of one animation: its own setting, else config image_fps
+function setFps(s) { return Math.max(0.5, Math.min(10, (s && s.fps) || CFG.image_fps || 2)); }
+// one loop: 1-2-3-4 (plain) or 1-2-3-4-3-2 (ping-pong, the default: the loop has no jump back to the start)
+function loopLen(s) { const n = s.frames.length; return n === 1 ? 1 : s.pp === false ? n : 2 * n - 2; }
+function frameAt(s, k) { const n = s.frames.length; if (n === 1) return 0; const i = k % loopLen(s); return i < n ? i : loopLen(s) - i; }
 function applyCustomImage(force) {
   const pg = $('#pg', root), img = $('#customImg', root);
   const pose = lastPose || 'idle', pool = setsFor(pose);
   if (!pool.length) { curImg = ''; img.removeAttribute('src'); pg.classList.remove('custom'); return; }
-  const now = Date.now(), fps = Math.max(0.5, Math.min(12, CFG.image_fps || 3)), hold = Math.max(0.1, CFG.image_switch_minutes || 12) * 60000;
+  const now = Date.now(), hold = Math.max(0.1, CFG.image_switch_minutes || 12) * 60000;
   let s = pool.find(x => x.id === play.setId);
   // pick an animation: when the state changes, when the current one is gone, or after `hold` once its loop has come round
-  const n = s ? Math.floor((now - play.startedAt) * fps / 1000) : 0;
-  const loopEnd = !s || s.frames.length === 1 || n % s.frames.length === 0;
+  let k = s ? Math.floor((now - play.startedAt) * setFps(s) / 1000) : 0;
+  const loopEnd = !s || k % loopLen(s) === 0;
   if (!s || pose !== play.pose || (now - play.startedAt >= hold && loopEnd)) {
     const c = pool.length > 1 && s ? pool.filter(x => x !== s) : pool;
-    s = c[Math.floor(Math.random() * c.length)]; play = { setId: s.id, startedAt: now, pose };
+    s = c[Math.floor(Math.random() * c.length)]; play = { setId: s.id, startedAt: now, pose }; k = 0;
   }
-  const idx = s.frames.length === 1 ? 0 : Math.floor((now - play.startedAt) * fps / 1000) % s.frames.length;
-  const d = s.frames[idx];
+  const d = s.frames[frameAt(s, k)];
   if (d !== curImg) { curImg = d; img.src = d; }
   curImgPose = pose; pg.classList.add('custom');
 }
 function startFrameTimer() {
-  const fps = Math.max(0.5, Math.min(12, CFG.image_fps || 3));
   if (startFrameTimer.t) clearInterval(startFrameTimer.t);
-  startFrameTimer.t = setInterval(() => { if (SETS.length) applyCustomImage(false); }, Math.round(1000 / fps));
+  startFrameTimer.t = setInterval(() => { if (SETS.length) applyCustomImage(false); }, 100);
 }
 // runs of lines (rows or columns) that contain any opaque pixel. Small runs (motion lines, sparkles)
 // are attached to the nearest big run when close; big runs stay separate even across a small gap.
@@ -767,23 +797,41 @@ function splitSheet(g, w, h) {
   for (let i = 0; i < w * h; i++) a[i] = d[i * 4 + 3] > 0 ? 1 : 0;
   const minSide = Math.max(24, Math.min(w, h) * 0.06), out = [];
   const rowHas = y => { for (let x = 0; x < w; x++) if (a[y * w + x]) return true; return false; };
-  for (const [y0, y1] of bands(h, rowHas, minSide)) {
-    const colHas = x => { for (let y = y0; y <= y1; y++) if (a[y * w + x]) return true; return false; };
+  bands(h, rowHas, minSide).forEach(([y0, y1], row) => {
+    const colHas = x => { for (let y = y0; y <= y1; y++) if (a[y * w + x]) return true; return false; }; let col = 0;
     for (const [x0, x1] of bands(w, colHas, minSide)) {
       let ty0 = y1, ty1 = y0;
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (a[y * w + x]) { if (y < ty0) ty0 = y; if (y > ty1) ty1 = y; break; }
-      const bw = x1 - x0 + 1, bh = ty1 - ty0 + 1; if (bw < minSide || bh < minSide) continue;
-      const pad = Math.round(Math.max(bw, bh) * 0.04), X = Math.max(0, x0 - pad), Y = Math.max(0, ty0 - pad);
-      out.push({ x: X, y: Y, w: Math.min(w, x1 + pad + 1) - X, h: Math.min(h, ty1 + pad + 1) - Y });
+      if (x1 - x0 + 1 < minSide || ty1 - ty0 + 1 < minSide) continue;
+      out.push({ x0, y0: ty0, x1, y1: ty1, row, col: col++ });
     }
-  }
+  });
   return out;
 }
-// one frame as a square image (WebP keeps the transparency and is ~5x smaller than PNG; PNG where WebP is unavailable)
-function squareCanvas(srcCanvas, box, size) {
-  const s = Math.max(box.w, box.h); const c = document.createElement('canvas'); c.width = size; c.height = size;
-  const k = size / s; c.getContext('2d').drawImage(srcCanvas, box.x, box.y, box.w, box.h, (size - box.w * k) / 2, (size - box.h * k) / 2, box.w * k, box.h * k);
-  const webp = c.toDataURL('image/webp', 0.9); return webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/png');
+// every frame of one sheet goes into a same-size square with one shared scale and anchor, so the character does not jump or
+// resize between frames. Horizontal anchor: the centre of the frame's grid cell (or of the frame itself when the sheet is not a
+// regular grid). Vertical anchor: the baseline of the frame's row (the lowest point in that row), so feet and desks stay put while
+// a frame that leaves the ground (a jump) still rises, and rows placed at different heights in the sheet are brought together.
+function frameImages(src, boxes, size) {
+  const n = boxes.length; if (!n) return [];
+  const rows = Math.max(...boxes.map(b => b.row)) + 1, cols = n / rows, cw = src.width / cols, ch = src.height / rows;
+  const grid = Number.isInteger(cols) && boxes.every(b => b.x0 >= (b.col - 0.1) * cw && b.x1 <= (b.col + 1.1) * cw && b.y0 >= (b.row - 0.1) * ch && b.y1 <= (b.row + 1.1) * ch);
+  const base = {}; boxes.forEach(b => { base[b.row] = Math.max(base[b.row] || 0, b.y1 + 1); });
+  boxes.forEach(b => { b.ax = grid ? (b.col + 0.5) * cw : (b.x0 + b.x1 + 1) / 2; b.ay = base[b.row]; });
+  const L = Math.max(...boxes.map(b => b.ax - b.x0)), R = Math.max(...boxes.map(b => b.x1 + 1 - b.ax)), T = Math.max(...boxes.map(b => b.ay - b.y0)), B = Math.max(...boxes.map(b => b.y1 + 1 - b.ay));
+  const W = L + R, H = T + B, k = size / (Math.max(W, H) * 1.08), ox = (size - W * k) / 2 + L * k, oy = (size - H * k) / 2 + T * k;
+  return boxes.map(b => {
+    const c = document.createElement('canvas'); c.width = size; c.height = size; const w = b.x1 - b.x0 + 1, h = b.y1 - b.y0 + 1;
+    c.getContext('2d').drawImage(src, b.x0, b.y0, w, h, ox + (b.x0 - b.ax) * k, oy + (b.y0 - b.ay) * k, w * k, h * k);
+    // WebP keeps the transparency and is ~5x smaller than PNG; PNG where WebP is unavailable
+    const webp = c.toDataURL('image/webp', 0.9); return webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/png');
+  });
+}
+// bounding box of the opaque pixels (a single image that is not a sheet)
+function tightBox(g, w, h) {
+  const d = g.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 0) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  return x1 < 0 ? { x0: 0, y0: 0, x1: w - 1, y1: h - 1, row: 0, col: 0 } : { x0, y0, x1, y1, row: 0, col: 0 };
 }
 // make the white / light-gray area connected to the image border transparent (drop shadows included); white inside the character stays
 function clearOuterWhite(g, w, h) {
@@ -797,8 +845,10 @@ function clearOuterWhite(g, w, h) {
 function showImagePanel() {
   const b = $('#imgBody', root);
   const tagSel = (sel, attr) => `<select ${attr}>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-  const rows = SETS.map(s => `<div class="imgrow" data-id="${s.id}"><img src="${s.frames[0]}" alt=""><div class="col"><input data-name value="${escapeHtml(s.name || '')}" placeholder="名前" maxlength="30"><div class="sub">${tagSel(s.tag, 'data-tag')}<span class="muted" style="font-size:11px;white-space:nowrap">${s.frames.length}コマ</span></div></div><button class="ibtn" data-del title="削除">✕</button></div>`).join('');
-  const fps = Math.max(0.5, Math.min(12, CFG.image_fps || 3)), hold = Math.max(0.1, CFG.image_switch_minutes || 12);
+  const fps = Math.max(0.5, Math.min(10, CFG.image_fps || 2)), hold = Math.max(0.1, CFG.image_switch_minutes || 12);
+  const SPEEDS = [['', `設定どおり（${fps}コマ/秒）`], ['1', 'ゆっくり（1コマ/秒）'], ['2', 'ふつう（2コマ/秒）'], ['4', 'はやい（4コマ/秒）'], ['8', 'とても速い（8コマ/秒）']];
+  const speedSel = s => `<select data-fps>${SPEEDS.map(([v, l]) => `<option value="${v}" ${String(s.fps || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+  const rows = SETS.map(s => `<div class="imgrow" data-id="${s.id}"><img src="${s.frames[0]}" alt=""><div class="col"><input data-name value="${escapeHtml(s.name || '')}" placeholder="名前" maxlength="30"><div class="sub">${tagSel(s.tag, 'data-tag')}${speedSel(s)}</div><div class="sub muted" style="font-size:11px"><label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" data-pp ${s.pp === false ? '' : 'checked'}> 往復再生</label><span style="white-space:nowrap">${s.frames.length}コマ${s.builtin ? '・同梱' : ''}</span></div></div><button class="ibtn" data-del title="削除">✕</button></div>`).join('');
   let lastTag = 'any'; try { lastTag = localStorage.getItem('lr_img_tag') || 'any'; } catch (e) { }
   b.innerHTML = `<div class="muted" style="margin-bottom:6px">シート1枚（または画像1枚）が1本のアニメになります。同じ状態に何本かあるときは、1本を${hold}分ほどループしてから次の1本にランダムで切り替えます（1秒に${fps}コマ。設定 image_fps / image_switch_minutes）。画像はこのブラウザの中にだけ保存され、どこにもアップロードされません。</div>
     <input type="file" id="imgFile" accept="image/*" multiple>
@@ -806,7 +856,7 @@ function showImagePanel() {
     <label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" id="imgWhite" checked> 外側の白い背景を透明にする</label>
     <label style="display:flex;gap:6px;align-items:center;font-size:12px">登録する状態：${tagSel(TAGS[lastTag] ? lastTag : 'any', 'id="imgTag"')}</label>
     <div id="imgRows">${rows || '<div class="muted">まだアニメはありません（描いたペンギンを表示中）</div>'}</div>
-    ${SETS.length ? `<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sec" id="imgReset" style="flex:1">すべて削除して描いたペンギンに戻す</button></div>` : ''}
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sec" id="imgBuiltin" style="flex:1">同梱のアニメを入れ直す</button>${SETS.length ? `<button class="btn sec" id="imgReset" style="flex:1">すべて削除して描いたペンギンに戻す</button>` : ''}</div>
     <div class="muted" style="margin-top:8px;font-size:11px">「いつでも」のアニメはどの状態でも使われ、状態を指定したアニメはその状態のときに優先されます。名前と状態はあとから変えられます。</div>`;
   $('#imgTag', root).onchange = ev => { try { localStorage.setItem('lr_img_tag', ev.target.value); } catch (e) { } };
   $('#imgFile', root).onchange = ev => {
@@ -826,7 +876,7 @@ function showImagePanel() {
           const g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
           if (white || sheet) clearOuterWhite(g, c.width, c.height);
           const boxes = sheet ? splitSheet(g, c.width, c.height) : [];
-          add((boxes.length ? boxes : [{ x: 0, y: 0, w: c.width, h: c.height }]).map(bx => squareCanvas(c, bx, 320)));
+          add(frameImages(c, boxes.length ? boxes : [tightBox(g, c.width, c.height)], 320));
         };
         im.onerror = () => { failed++; finish(); };
         im.src = rd.result;
@@ -838,9 +888,12 @@ function showImagePanel() {
     const id = row.dataset.id, s = SETS.find(x => x.id === id); if (!s) return;
     row.querySelector('[data-name]').onchange = ev => { s.name = ev.target.value.trim() || s.name; ev.target.value = s.name; saveSet(s); };
     row.querySelector('[data-tag]').onchange = ev => { s.tag = ev.target.value; saveSet(s).then(() => { applyCustomImage(true); showImagePanel(); }); };
+    row.querySelector('[data-fps]').onchange = ev => { s.fps = +ev.target.value || null; play.startedAt = Date.now(); saveSet(s); };
+    row.querySelector('[data-pp]').onchange = ev => { s.pp = ev.target.checked; saveSet(s); };
     row.querySelector('[data-del]').onclick = () => { if (!(root.defaultView || window).confirm(`「${s.name}」を削除する？`)) return; deleteSet(id).then(() => { applyCustomImage(true); showImagePanel(); }); };
   });
   const r = $('#imgReset', root); if (r) r.onclick = async () => { if (!(root.defaultView || window).confirm('登録したアニメをすべて削除する？')) return; for (const s of [...SETS]) await deleteSet(s.id); applyCustomImage(true); showImagePanel(); say('描いたペンギンに戻したよ。'); };
+  $('#imgBuiltin', root).onclick = async () => { say('同梱のアニメを読み込み中…'); const n = await loadBuiltinSets(true); showImagePanel(); say(n ? `同梱のアニメ ${n}本が使えるよ！だいちゃーじ！` : 'まだ同梱のアニメは無いみたい。'); };
   openPanel('imgPanel');
 }
 function saveHistory() {
@@ -935,6 +988,7 @@ async function boot() {
   save();
   await loadSets();
   wire(document); render(true); renderHint();
+  loadBuiltinSets(); // in the background: the drawn penguin shows until the shipped animations are in
   // service worker: only for notification buttons (no caching)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     try { swReg = await navigator.serviceWorker.register('sw.js'); navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'notification-action') handleAction(e.data.action); }); } catch (e) { swReg = null; }

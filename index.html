@@ -13,7 +13,7 @@
   --bg:#cfe7f5; --card:#eef7fc; --fg:#1d2a3a; --muted:#5f7387; --line:#bfdbeb;
   --accent:#2f8fd6; --accent-fg:#ffffff; --soft:#d9edf9; --warn:#d99a2b; --ok:#3a9a65;
   --bubble:#ffffff; --shadow:0 6px 24px rgba(30,50,80,.12);
-  --pg-body:#9dd7f3; --pg-face:#ffffff; --pg-beak:#d9eefb; --pg-line:#1f2733; --pg-feet:#c6dbe7; --pg-heart:#f38fb6;
+  --pg-body:#9dd7f3; --pg-face:#ffffff; --pg-beak:#cfe9fa; --pg-line:#1f2733; --pg-feet:#b9e0f5; --pg-heart:#f38fb6;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -172,31 +172,29 @@ table.tt td:first-child{color:var(--muted);font-variant-numeric:tabular-nums;wid
           <ellipse cx="45" cy="111" rx="13" ry="5.5" fill="var(--pg-feet)" stroke="var(--pg-line)" stroke-width="2.4"/>
           <ellipse cx="75" cy="111" rx="13" ry="5.5" fill="var(--pg-feet)" stroke="var(--pg-line)" stroke-width="2.4"/>
           <!-- body: one light-blue egg, big round head -->
-          <path d="M60 6 C 24 6, 10 36, 12 66 C 14 96, 34 112, 60 112 C 86 112, 106 96, 108 66 C 110 36, 96 6, 60 6 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/>
-          <!-- white belly -->
-          <path d="M60 84 C 44 84, 36 94, 38 106 C 42 112, 50 112, 60 112 C 70 112, 78 112, 82 106 C 84 94, 76 84, 60 84 Z" fill="var(--pg-face)"/>
-          <!-- white face mask; the hood dips to a point between the eyes -->
-          <path d="M60 36 C 52 28, 34 28, 28 44 C 22 60, 30 80, 60 82 C 90 80, 98 60, 92 44 C 86 28, 68 28, 60 36 Z" fill="var(--pg-face)"/>
+          <path d="M60 6 C 26 6, 12 34, 13 62 C 14 92, 32 112, 60 112 C 88 112, 106 92, 107 62 C 108 34, 94 6, 60 6 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/>
+          <!-- white front: face and belly in one piece; the blue hood comes down to a point between the eyes -->
+          <path d="M60 52 C 55 40, 44 32, 35 40 C 26 48, 26 66, 29 86 C 32 102, 44 110, 60 110 C 76 110, 88 102, 91 86 C 94 66, 94 48, 85 40 C 76 32, 65 40, 60 52 Z" fill="var(--pg-face)"/>
           <!-- flippers -->
-          <g class="fl"><path d="M16 62 C 2 70, 2 92, 14 96 C 24 98, 30 86, 30 70 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/></g>
-          <g class="fr"><path d="M104 62 C 118 70, 118 92, 106 96 C 96 98, 90 86, 90 70 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/></g>
+          <g class="fl"><path d="M22 62 C 8 68, 2 88, 12 96 C 22 100, 30 88, 32 72 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/></g>
+          <g class="fr"><path d="M98 62 C 112 68, 118 88, 108 96 C 98 100, 90 88, 88 72 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/></g>
           <!-- eyes -->
           <g class="eyes-open">
-            <ellipse cx="46" cy="55" rx="3.4" ry="4.4" fill="var(--pg-line)"/>
-            <ellipse cx="74" cy="55" rx="3.4" ry="4.4" fill="var(--pg-line)"/>
-            <circle cx="47.3" cy="53.2" r="1.1" fill="#fff"/>
-            <circle cx="75.3" cy="53.2" r="1.1" fill="#fff"/>
+            <ellipse cx="46" cy="58" rx="3.2" ry="4.6" fill="var(--pg-line)"/>
+            <ellipse cx="74" cy="58" rx="3.2" ry="4.6" fill="var(--pg-line)"/>
+            <circle cx="47.2" cy="56.2" r="1" fill="#fff"/>
+            <circle cx="75.2" cy="56.2" r="1" fill="#fff"/>
           </g>
           <g class="eyes-sleep" stroke="var(--pg-line)" stroke-width="2.6" stroke-linecap="round" fill="none">
-            <path d="M41 56 q5 3 10 0"/><path d="M69 56 q5 3 10 0"/>
+            <path d="M41 59 q5 3 10 0"/><path d="M69 59 q5 3 10 0"/>
           </g>
           <g class="eyes-happy" fill="var(--pg-heart)" stroke="var(--pg-line)" stroke-width="1.6" stroke-linejoin="round">
-            <path d="M46 60 C 40 55, 39 49, 43 48 C 45 47.5, 46 49, 46 50 C 46 49, 47 47.5, 49 48 C 53 49, 52 55, 46 60 Z"/>
-            <path d="M74 60 C 68 55, 67 49, 71 48 C 73 47.5, 74 49, 74 50 C 74 49, 75 47.5, 77 48 C 81 49, 80 55, 74 60 Z"/>
+            <path d="M46 63 C 40 58, 39 52, 43 51 C 45 50.5, 46 52, 46 53 C 46 52, 47 50.5, 49 51 C 53 52, 52 58, 46 63 Z"/>
+            <path d="M74 63 C 68 58, 67 52, 71 51 C 73 50.5, 74 52, 74 53 C 74 52, 75 50.5, 77 51 C 81 52, 80 58, 74 63 Z"/>
           </g>
-          <!-- beak: light-blue diamond -->
-          <path d="M60 60 L 69 68 L 60 76 L 51 68 Z" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2.6" stroke-linejoin="round"/>
-          <path d="M53.5 68 L 66.5 68" stroke="var(--pg-line)" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>
+          <!-- beak: light-blue diamond with a closed-mouth line -->
+          <path d="M60 60 L 69 67.5 L 60 75 L 51 67.5 Z" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2.6" stroke-linejoin="round"/>
+          <path d="M52.5 67.5 L 67.5 67.5" stroke="var(--pg-line)" stroke-width="1.8" stroke-linecap="round"/>
           <!-- props -->
           <g class="laptop">
             <rect x="30" y="98" width="60" height="6" rx="2" fill="#9aa9b8" stroke="var(--pg-line)" stroke-width="2"/>
@@ -650,7 +648,7 @@ function saveHistory() {
 
 /* ---------- friends (cameo) ---------- */
 const FRIENDS = [
-  `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="34" rx="22" ry="20" fill="#f6d84a" stroke="#1e2c44" stroke-width="2.5"/><path d="M8 30 c-6 -2 -8 6 -2 10z" fill="#f6d84a" stroke="#1e2c44" stroke-width="2.5"/><path d="M30 14 l-4 -8 l6 5 l3 -7 l1 9z" fill="#f6d84a" stroke="#1e2c44" stroke-width="2"/><circle cx="24" cy="32" r="2.6" fill="#1e2c44"/><circle cx="36" cy="32" r="2.6" fill="#1e2c44"/><path d="M27 40 l6 0 l-3 4z" fill="#f29a3a" stroke="#1e2c44" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  `<svg viewBox="0 0 60 60"><rect x="15" y="2" width="11" height="28" rx="5.5" fill="#f6d84a" stroke="#1e2c44" stroke-width="2.5"/><rect x="34" y="2" width="11" height="28" rx="5.5" fill="#f6d84a" stroke="#1e2c44" stroke-width="2.5"/><ellipse cx="30" cy="40" rx="20" ry="17" fill="#f6d84a" stroke="#1e2c44" stroke-width="2.5"/><path d="M19 36 l9 2" stroke="#1e2c44" stroke-width="2.4" stroke-linecap="round"/><path d="M41 36 l-9 2" stroke="#1e2c44" stroke-width="2.4" stroke-linecap="round"/><path d="M21 42 q3 -3 6 0" stroke="#1e2c44" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M33 42 q3 -3 6 0" stroke="#1e2c44" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M28 49 q2 2 4 0" stroke="#1e2c44" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`,
   `<svg viewBox="0 0 60 60"><path d="M30 6 l6 7 l9 -3 l1 9 l9 3 l-5 7 l5 8 l-9 2 l-1 9 l-9 -3 l-6 7 l-6 -7 l-9 3 l-1 -9 l-9 -2 l5 -8 l-5 -7 l9 -3 l1 -9 l9 3z" fill="#f2a5c0" stroke="#1e2c44" stroke-width="2.5" stroke-linejoin="round"/><ellipse cx="30" cy="33" rx="14" ry="13" fill="#fff3e6" stroke="#1e2c44" stroke-width="2.5"/><path d="M22 27 l6 3" stroke="#1e2c44" stroke-width="2.5" stroke-linecap="round"/><path d="M38 27 l-6 3" stroke="#1e2c44" stroke-width="2.5" stroke-linecap="round"/><circle cx="25" cy="32" r="2.2" fill="#1e2c44"/><circle cx="35" cy="32" r="2.2" fill="#1e2c44"/><ellipse cx="30" cy="38" rx="3" ry="2" fill="#1e2c44"/><circle cx="47" cy="40" r="2.5" fill="none" stroke="#f3c94a" stroke-width="2"/></svg>`,
   `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="34" rx="18" ry="17" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><ellipse cx="12" cy="36" rx="7" ry="12" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><ellipse cx="48" cy="36" rx="7" ry="12" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><circle cx="24" cy="16" r="6" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><circle cx="36" cy="16" r="6" fill="#e8834a" stroke="#1e2c44" stroke-width="2.5"/><ellipse cx="30" cy="40" rx="9" ry="7" fill="#fff" stroke="#1e2c44" stroke-width="2.5"/><circle cx="24" cy="31" r="2.4" fill="#1e2c44"/><circle cx="36" cy="31" r="2.4" fill="#1e2c44"/><ellipse cx="30" cy="38" rx="3" ry="2.2" fill="#1e2c44"/></svg>`,
   `<svg viewBox="0 0 60 60"><path d="M30 8 c-16 0 -22 12 -22 24 c0 10 6 18 12 20 c3 1 4 -3 6 -3 c3 0 3 4 6 3 c7 -2 14 -10 14 -20 c0 -12 -6 -24 -16 -24z" fill="#ffffff" stroke="#1e2c44" stroke-width="2.5"/><circle cx="24" cy="30" r="2.6" fill="#1e2c44"/><circle cx="36" cy="30" r="2.6" fill="#1e2c44"/><path d="M26 38 q4 3 8 0" stroke="#1e2c44" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="18" cy="36" r="2.5" fill="#f7b7c6"/><circle cx="42" cy="36" r="2.5" fill="#f7b7c6"/></svg>`

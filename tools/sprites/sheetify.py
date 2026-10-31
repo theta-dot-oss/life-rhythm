@@ -27,10 +27,20 @@ def border_connected(mask):
         reach = grow
 
 def to_rgba(im):
-    """Background (near-white, connected to the image border) -> transparent, with soft
-    edges. White areas inside the drawing (face, belly, paper) stay opaque."""
+    """Background -> transparent, with soft edges. If the image already has a transparent
+    border (RGBA from the generator), its alpha is used as is. Otherwise the background
+    colour is read from the border (usually white) and only pixels of that colour that
+    are connected to the border are removed, so white areas inside the drawing (face,
+    belly, paper) stay opaque."""
+    if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
+        rgba = np.asarray(im.convert("RGBA"))
+        border = np.concatenate([rgba[0, :, 3], rgba[-1, :, 3], rgba[:, 0, 3], rgba[:, -1, 3]])
+        if border.mean() < 8:
+            return Image.fromarray(rgba, "RGBA")
     rgb = np.asarray(im.convert("RGB")).astype(np.float32)
-    d = np.sqrt(((255 - rgb) ** 2).sum(axis=2))      # distance from pure white, 0..441
+    border_px = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
+    bgc = np.median(border_px, axis=0)
+    d = np.sqrt(((bgc - rgb) ** 2).sum(axis=2))      # distance from the background colour
     bg = border_connected(d < 58)                     # candidate background pixels
     # soft alpha only in the background region and a 1px fringe around it
     fringe = bg.copy()

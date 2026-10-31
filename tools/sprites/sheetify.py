@@ -43,8 +43,8 @@ def to_rgba(im):
     out = np.dstack([col, alpha * 255]).astype(np.uint8)
     return Image.fromarray(out, "RGBA")
 
-def bands(mask, axis, min_gap, min_size=8):
-    """1-D runs of 'something here' along axis, merging gaps smaller than min_gap."""
+def runs_1d(mask, axis):
+    """Raw 1-D runs of 'something here' along axis."""
     proj = mask.any(axis=axis)
     runs, start = [], None
     for i, v in enumerate(proj):
@@ -54,20 +54,35 @@ def bands(mask, axis, min_gap, min_size=8):
             runs.append([start, i]); start = None
     if start is not None:
         runs.append([start, len(proj)])
-    merged = []
-    for r in runs:
-        if merged and r[0] - merged[-1][1] < min_gap:
-            merged[-1][1] = r[1]
-        else:
-            merged.append(r)
-    return [r for r in merged if r[1] - r[0] >= min_size]
+    return runs
 
-def find_cells(rgba, min_gap_frac=0.01):
+def bands(mask, axis, small_frac=0.35):
+    """Runs along axis, where fragments much narrower than a typical pose (effects such as
+    motion lines, rays or sparkles that fell into a gap) are merged into the nearest run.
+    Big runs stay separate even when the gap between them is only a few pixels."""
+    runs = runs_1d(mask, axis)
+    if not runs:
+        return []
+    widths = sorted(r[1] - r[0] for r in runs)
+    big = [w for w in widths if w >= 0.5 * widths[-1]]
+    typical = big[len(big) // 2]
+    small = typical * small_frac
+    out = []
+    for r in runs:
+        if r[1] - r[0] >= small or not out:
+            out.append(list(r))
+        else:
+            out[-1][1] = r[1]  # attach fragment to the run on its left
+    # a leading fragment: attach to the run on its right
+    if len(out) > 1 and out[0][1] - out[0][0] < small:
+        out[1][0] = out[0][0]; out.pop(0)
+    return [r for r in out if r[1] - r[0] >= 8]
+
+def find_cells(rgba):
     a = np.asarray(rgba)[..., 3] > 40
-    H, W = a.shape
     cells = []
-    for y0, y1 in bands(a, axis=1, min_gap=int(H * min_gap_frac)):
-        for x0, x1 in bands(a[y0:y1], axis=0, min_gap=int(W * min_gap_frac)):
+    for y0, y1 in bands(a, axis=1):
+        for x0, x1 in bands(a[y0:y1], axis=0):
             sub = a[y0:y1, x0:x1]
             ys, xs = np.where(sub)
             cells.append((x0 + xs.min(), y0 + ys.min(), x0 + xs.max() + 1, y0 + ys.max() + 1))
@@ -95,6 +110,7 @@ def main():
     ap.add_argument("--baseline", type=float, default=0.93, help="feet baseline as a fraction of the cell height")
     ap.add_argument("--fill", type=float, default=0.88, help="tallest pose height as a fraction of the cell")
     ap.add_argument("--version", type=int, default=1)
+    ap.add_argument("--count", type=int, default=None, help="expected number of poses (warns if different)")
     args = ap.parse_args()
 
     os.makedirs(os.path.join(args.outdir, "frames"), exist_ok=True)
@@ -103,6 +119,8 @@ def main():
     if not cells:
         sys.exit("no poses found")
     frames = [rgba.crop(c) for c in cells]
+    if args.count and len(cells) != args.count:
+        print(f"WARNING: expected {args.count} poses, found {len(cells)}", file=sys.stderr)
 
     # one common scale for every pose: based on the median pose height (feet to top of head,
     # effects like rays or bulbs above the head are included, so use the median not the max)

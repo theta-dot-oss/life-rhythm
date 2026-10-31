@@ -88,14 +88,36 @@ def bands(mask, axis, small_frac=0.35):
         out[1][0] = out[0][0]; out.pop(0)
     return [r for r in out if r[1] - r[0] >= 8]
 
-def find_cells(rgba):
+def tight(a, x0, y0, x1, y1):
+    sub = a[y0:y1, x0:x1]
+    ys, xs = np.where(sub)
+    if len(xs) == 0:
+        return None
+    return (x0 + xs.min(), y0 + ys.min(), x0 + xs.max() + 1, y0 + ys.max() + 1)
+
+def find_cells(rgba, count=None):
     a = np.asarray(rgba)[..., 3] > 40
     cells = []
     for y0, y1 in bands(a, axis=1):
         for x0, x1 in bands(a[y0:y1], axis=0):
-            sub = a[y0:y1, x0:x1]
-            ys, xs = np.where(sub)
-            cells.append((x0 + xs.min(), y0 + ys.min(), x0 + xs.max() + 1, y0 + ys.max() + 1))
+            c = tight(a, x0, y0, x1, y1)
+            if c:
+                cells.append(c)
+    # Poses that touch each other (pompoms, wide props) come out as one wide cell. When the
+    # expected count is known, split the widest cells at their emptiest column until we
+    # have that many.
+    while count and len(cells) < count:
+        i = max(range(len(cells)), key=lambda k: cells[k][2] - cells[k][0])
+        x0, y0, x1, y1 = cells[i]
+        w = x1 - x0
+        occ = a[y0:y1, x0:x1].sum(axis=0)
+        lo, hi = int(w * 0.3), int(w * 0.7)
+        cut = x0 + lo + int(np.argmin(occ[lo:hi]))
+        parts = [tight(a, x0, y0, cut, y1), tight(a, cut, y0, x1, y1)]
+        cells[i:i + 1] = [p for p in parts if p]
+        if len(parts) < 2:
+            break
+    cells.sort(key=lambda c: (round(c[1] / 50), c[0]))  # reading order: row, then column
     return cells
 
 def body_bottom(frame):
@@ -125,7 +147,7 @@ def main():
 
     os.makedirs(os.path.join(args.outdir, "frames"), exist_ok=True)
     rgba = to_rgba(Image.open(args.input))
-    cells = find_cells(rgba)
+    cells = find_cells(rgba, args.count)
     if not cells:
         sys.exit("no poses found")
     frames = [rgba.crop(c) for c in cells]

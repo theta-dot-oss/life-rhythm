@@ -32,9 +32,24 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Yu Gothic UI","Hiragino Sans","Noto Sans JP",sans-serif;
   -webkit-font-smoothing:antialiased;display:flex;align-items:flex-start;justify-content:center;padding:16px}
 body.pip{padding:0;align-items:stretch}
-#app{width:100%;max-width:320px;background:var(--card);border-radius:18px;box-shadow:var(--shadow);border:1px solid var(--line);
+#app{width:100%;max-width:560px;background:var(--card);border-radius:18px;box-shadow:var(--shadow);border:1px solid var(--line);
   display:flex;flex-direction:column;overflow:hidden;position:relative}
 body.pip #app{max-width:none;border-radius:0;border:0;box-shadow:none;min-height:100%}
+/* wide (landscape) layout, applied by script when the app is at least 440px wide: penguin on the left, everything else on the right */
+#app.wide{display:grid;grid-template-columns:170px 1fr;grid-template-rows:auto auto 1fr auto auto auto;align-content:start}
+#app.wide .top{grid-column:1/-1}
+#app.wide .stage{display:contents}
+#app.wide .pg{grid-column:1;grid-row:2/6;width:150px;height:150px;align-self:center;justify-self:center;margin:4px 0 8px}
+#app.wide .info{grid-column:2;grid-row:2;padding:4px 12px 0 0;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px}
+#app.wide .cur{margin-top:0;font-size:17px}
+#app.wide .elapsed{flex-basis:100%;font-size:40px;margin-top:0}
+#app.wide .bubble{grid-column:2;grid-row:3;margin:6px 12px 0 0;align-self:start;min-height:34px;padding:6px 10px}
+#app.wide .bubble:before{left:-7px;top:14px;transform:rotate(-45deg)}
+#app.wide .next{grid-column:2;grid-row:4;margin:4px 12px 0 0}
+#app.wide .bar{grid-column:2;grid-row:5;margin:4px 12px 0 0}
+#app.wide .actions{grid-column:2;grid-row:6;padding:6px 12px 10px 0}
+#app.wide .btn{padding:9px 12px}
+#app.wide .hint{grid-column:1/-1}
 .top{display:flex;align-items:center;gap:8px;padding:10px 12px 0}
 .clock{font-size:22px;font-weight:700;letter-spacing:.5px;font-variant-numeric:tabular-nums}
 .dow{font-size:12px;color:var(--muted);margin-top:4px}
@@ -60,22 +75,22 @@ body.pip #app{max-width:none;border-radius:0;border:0;box-shadow:none;min-height
 .imgrow .sub{display:flex;gap:6px;align-items:center}
 .imgrow input{font-size:12px;padding:4px 6px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);min-width:0;width:100%;box-sizing:border-box}
 .info{flex:1;min-width:0;padding-top:6px}
-.badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--soft);color:var(--accent)}
+.badge{display:inline-block;font-size:14px;font-weight:700;padding:3px 12px;border-radius:999px;background:var(--soft);color:var(--accent)}
 .badge.working{background:var(--soft)}
 .badge.break,.badge.longbreak{background:#e8f6ee;color:var(--ok)}
 :root[data-theme="dark"] .badge.break,:root[data-theme="dark"] .badge.longbreak{background:#1c3328}
 .badge.exercise{background:#fff1dc;color:#b7741a}
 :root[data-theme="dark"] .badge.exercise{background:#3a2d17;color:var(--warn)}
-.cur{margin-top:6px;font-size:13px;color:var(--muted)}
-.cur b{color:var(--fg);font-weight:600}
-.elapsed{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
-.elapsed small{font-size:12px;color:var(--muted);font-weight:500;margin-left:4px}
+.cur{margin-top:6px;font-size:16px;color:var(--muted)}
+.cur b{color:var(--fg);font-weight:700}
+.elapsed{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
+.elapsed small{font-size:13px;color:var(--muted);font-weight:500;margin-left:6px}
 .bubble{margin:8px 12px 0;background:var(--bubble);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px;position:relative;min-height:38px}
 .bubble:before{content:"";position:absolute;left:38px;top:-7px;width:12px;height:12px;background:var(--bubble);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
 .next{margin:8px 12px 0;font-size:13px}
 .next .main{font-weight:600}
-.next .sub{color:var(--muted);font-size:12px;margin-top:2px}
-.next .cal{color:var(--muted);font-size:12px;margin-top:2px}
+.next .sub{display:none} /* 次の時間割・運動の行とカレンダーの行は出さない（本人の希望） */
+.next .cal{display:none}
 .next .cal span{color:var(--fg)}
 .bar{margin:8px 12px 0;height:6px;background:var(--line);border-radius:999px;overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .5s linear}
@@ -508,9 +523,10 @@ function checkDue(now) {
 }
 
 /* ---------- rendering ---------- */
-let lastPose = '', lastLine = '';
+let lastPose = '', lastLine = '', dueNow = false, curDue = false;
 function render(force) {
   const now = Date.now(), d = new Date(now);
+  const appEl = $('#app', root); appEl.classList.toggle('wide', appEl.clientWidth >= 440);
   $('#clock', root).textContent = fmtClock(d);
   const base = todayDate(now);
   $('#dow', root).textContent = `${base.getMonth() + 1}/${base.getDate()}（${DOW[base.getDay()]}）`;
@@ -581,7 +597,9 @@ function render(force) {
 
   // penguin + bubble
   const pg = $('#pg', root); if (pose !== lastPose) { [...pg.classList].filter(c => c.startsWith('pose-')).forEach(c => pg.classList.remove(c)); pg.classList.add('pose-' + pose); lastPose = pose; }
-  if (force || pose !== curImgPose) applyCustomImage(false);
+  // "due": a break / resume / exercise / long-break end is being asked for and not yet acted on -> animations tagged 呼びかけ中
+  dueNow = !paused && !!(exDue || over || (S.mode === 'longbreak' && S.target && now >= S.target));
+  if (force || pose !== curImgPose || dueNow !== curDue) applyCustomImage(false);
   if (!S.line || (now - (S.lineAt || 0) > 90000 && !dueBreak && !exDue)) {
     const key = { idle: S.started ? 'idle' : 'idle', working: 'working', break: 'breaking', longbreak: 'long_break', exercise: 'exercising', prep: 'exercise_done', done: 'done' }[S.mode] || 'idle';
     const l = pick(L(key), S.line); if (l) { S.line = l; S.lineAt = now; save(); }
@@ -667,7 +685,7 @@ function showSettings() {
 /* ---------- custom character animations (stay in this browser only) ---------- */
 // one sprite sheet = one animation ("set") with a name and a state. Animations are never mixed: the one
 // playing runs whole loops, and another one for the same state is picked at random every image_switch_minutes.
-const TAGS = { any: 'いつでも', work: '作業中', break: '休憩中', ex: '運動中', sleep: '休息・終了後', happy: 'ごほうび（終了直後）' };
+const TAGS = { any: 'いつでも', work: '作業中', break: '休憩中', ex: '運動中', sleep: '休息・終了後', happy: 'ごほうび（終了直後）', due: '呼びかけ中（休憩・再開・運動の合図）' };
 let SETS = [], curImg = '', curImgPose = '', play = { setId: null, startedAt: 0, pose: '' };
 function newId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 // IndexedDB has far more room than localStorage (several animations of 6+ frames each)
@@ -707,7 +725,7 @@ async function loadSets() {
 async function saveSet(s) {
   if (!SETS.includes(s)) SETS.push(s); preload(s);
   const db = await idb(); if (!db) return false;
-  return !!(await idbRun(db, 'readwrite', st => st.put({ id: s.id, name: s.name, tag: s.tag, frames: s.frames, at: s.at, fps: s.fps || null, pp: s.pp !== false, builtin: s.builtin || null })));
+  return !!(await idbRun(db, 'readwrite', st => st.put({ id: s.id, name: s.name, tag: s.tag, frames: s.frames, at: s.at, sec: s.sec || null, fps: s.fps || null, pp: s.pp !== false, builtin: s.builtin || null })));
 }
 async function deleteSet(id) {
   SETS = SETS.filter(s => s.id !== id); if (play.setId === id) play.setId = null;
@@ -733,7 +751,7 @@ async function loadBuiltinSets(force) {
       const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
       clearOuterWhite(g, c.width, c.height);
       const boxes = splitSheet(g, c.width, c.height), frames = frameImages(c, boxes.length ? boxes : [tightBox(g, c.width, c.height)], 320);
-      const s = old || { id, at: Date.now(), tag: TAGS[e.state] ? e.state : 'any', name: e.name_ja || e.name, fps: +e.fps || null, pp: e.pingpong !== false };
+      const s = old || { id, at: Date.now(), tag: TAGS[e.state] ? e.state : 'any', name: e.name_ja || e.name, sec: +e.seconds || null, fps: +e.fps || null, pp: e.pingpong !== false };
       Object.assign(s, { frames, builtin: key, _els: null });
       if (await saveSet(s)) added++;
     } catch (err) { }
@@ -742,32 +760,33 @@ async function loadBuiltinSets(force) {
   return SETS.filter(s => s.builtin).length;
 }
 function setsFor(pose) {
+  if (dueNow) { const d = SETS.filter(s => s.tag === 'due'); if (d.length) return d; }
   const tag = { work: 'work', break: 'break', ex: 'ex', sleep: 'sleep', happy: 'happy' }[pose] || 'any';
   let pool = SETS.filter(s => s.tag === tag); if (!pool.length) pool = SETS.filter(s => s.tag === 'any'); if (!pool.length) pool = SETS;
   return pool;
 }
 function customImage() { return curImg; }
-// frames per second of one animation: its own setting, else config image_fps
-function setFps(s) { return Math.max(0.5, Math.min(10, (s && s.fps) || CFG.image_fps || 1)); }
+// seconds one frame stays: the animation's own setting, else config image_frame_seconds (1 s is the fastest allowed)
+function frameSec(s) { const v = (s && (s.sec || (s.fps ? 1 / s.fps : 0))) || CFG.image_frame_seconds || (CFG.image_fps ? 1 / CFG.image_fps : 0) || 1.5; return Math.max(1, Math.min(10, v)); }
 // one loop: 1-2-3-4 (plain) or 1-2-3-4-3-2 (ping-pong, the default: the loop has no jump back to the start)
 function loopLen(s) { const n = s.frames.length; return n === 1 ? 1 : s.pp === false ? n : 2 * n - 2; }
 function frameAt(s, k) { const n = s.frames.length; if (n === 1) return 0; const i = k % loopLen(s); return i < n ? i : loopLen(s) - i; }
 function applyCustomImage(force) {
   const pg = $('#pg', root), img = $('#customImg', root);
-  const pose = lastPose || 'idle', pool = setsFor(pose);
+  const pose = lastPose || 'idle', pool = setsFor(pose), pk = (dueNow ? 'due:' : '') + pose;
   if (!pool.length) { curImg = ''; img.removeAttribute('src'); pg.classList.remove('custom'); return; }
   const now = Date.now(), hold = Math.max(0.1, CFG.image_switch_minutes || 12) * 60000;
   let s = pool.find(x => x.id === play.setId);
   // pick an animation: when the state changes, when the current one is gone, or after `hold` once its loop has come round
-  let k = s ? Math.floor((now - play.startedAt) * setFps(s) / 1000) : 0;
+  let k = s ? Math.floor((now - play.startedAt) / (frameSec(s) * 1000)) : 0;
   const loopEnd = !s || k % loopLen(s) === 0;
-  if (!s || pose !== play.pose || (now - play.startedAt >= hold && loopEnd)) {
+  if (!s || pk !== play.pose || (now - play.startedAt >= hold && loopEnd)) {
     const c = pool.length > 1 && s ? pool.filter(x => x !== s) : pool;
-    s = c[Math.floor(Math.random() * c.length)]; play = { setId: s.id, startedAt: now, pose }; k = 0;
+    s = c[Math.floor(Math.random() * c.length)]; play = { setId: s.id, startedAt: now, pose: pk }; k = 0;
   }
   const d = s.frames[frameAt(s, k)];
   if (d !== curImg) { curImg = d; img.src = d; }
-  curImgPose = pose; pg.classList.add('custom');
+  curImgPose = pose; curDue = dueNow; pg.classList.add('custom');
 }
 function startFrameTimer() {
   if (startFrameTimer.t) clearInterval(startFrameTimer.t);
@@ -846,12 +865,12 @@ function clearOuterWhite(g, w, h) {
 function showImagePanel() {
   const b = $('#imgBody', root);
   const tagSel = (sel, attr) => `<select ${attr}>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-  const fps = Math.max(0.5, Math.min(10, CFG.image_fps || 1)), hold = Math.max(0.1, CFG.image_switch_minutes || 12);
-  const SPEEDS = [['', `設定どおり（${fps}コマ/秒）`], ['0.5', 'とてもゆっくり（2秒に1コマ）'], ['1', 'ゆっくり（1コマ/秒）'], ['2', 'ふつう（2コマ/秒）'], ['4', 'はやい（4コマ/秒）'], ['8', 'とても速い（8コマ/秒）']];
-  const speedSel = s => `<select data-fps>${SPEEDS.map(([v, l]) => `<option value="${v}" ${String(s.fps || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+  const sec = frameSec(null), hold = Math.max(0.1, CFG.image_switch_minutes || 12);
+  const SPEEDS = [['', `設定どおり（1コマ ${sec}秒）`], ['1', '1コマ 1秒（いちばん速い）'], ['1.5', '1コマ 1.5秒'], ['2', '1コマ 2秒'], ['2.5', '1コマ 2.5秒'], ['3', '1コマ 3秒']];
+  const speedSel = s => `<select data-sec>${SPEEDS.map(([v, l]) => `<option value="${v}" ${String(s.sec || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const rows = SETS.map(s => `<div class="imgrow" data-id="${s.id}"><img src="${s.frames[0]}" alt=""><div class="col"><input data-name value="${escapeHtml(s.name || '')}" placeholder="名前" maxlength="30"><div class="sub">${tagSel(s.tag, 'data-tag')}${speedSel(s)}</div><div class="sub muted" style="font-size:11px"><label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" data-pp ${s.pp === false ? '' : 'checked'}> 往復再生</label><span style="white-space:nowrap">${s.frames.length}コマ${s.builtin ? '・同梱' : ''}</span></div></div><button class="ibtn" data-del title="削除">✕</button></div>`).join('');
   let lastTag = 'any'; try { lastTag = localStorage.getItem('lr_img_tag') || 'any'; } catch (e) { }
-  b.innerHTML = `<div class="muted" style="margin-bottom:6px">シート1枚（または画像1枚）が1本のアニメになります。同じ状態に何本かあるときは、1本を${hold}分ほどループしてから次の1本にランダムで切り替えます（1秒に${fps}コマ。設定 image_fps / image_switch_minutes）。画像はこのブラウザの中にだけ保存され、どこにもアップロードされません。</div>
+  b.innerHTML = `<div class="muted" style="margin-bottom:6px">シート1枚（または画像1枚）が1本のアニメになります。同じ状態に何本かあるときは、1本を${hold}分ほどループしてから次の1本にランダムで切り替えます（1コマ ${sec}秒。設定 image_frame_seconds / image_switch_minutes）。画像はこのブラウザの中にだけ保存され、どこにもアップロードされません。</div>
     <input type="file" id="imgFile" accept="image/*" multiple>
     <label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" id="imgSheet" checked> スプライトシートとして切り分ける（1枚に複数コマ）</label>
     <label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" id="imgWhite" checked> 外側の白い背景を透明にする</label>
@@ -889,7 +908,7 @@ function showImagePanel() {
     const id = row.dataset.id, s = SETS.find(x => x.id === id); if (!s) return;
     row.querySelector('[data-name]').onchange = ev => { s.name = ev.target.value.trim() || s.name; ev.target.value = s.name; saveSet(s); };
     row.querySelector('[data-tag]').onchange = ev => { s.tag = ev.target.value; saveSet(s).then(() => { applyCustomImage(true); showImagePanel(); }); };
-    row.querySelector('[data-fps]').onchange = ev => { s.fps = +ev.target.value || null; play.startedAt = Date.now(); saveSet(s); };
+    row.querySelector('[data-sec]').onchange = ev => { s.sec = +ev.target.value || null; s.fps = null; play.startedAt = Date.now(); saveSet(s); };
     row.querySelector('[data-pp]').onchange = ev => { s.pp = ev.target.checked; saveSet(s); };
     row.querySelector('[data-del]').onclick = () => { if (!(root.defaultView || window).confirm(`「${s.name}」を削除する？`)) return; deleteSet(id).then(() => { applyCustomImage(true); showImagePanel(); }); };
   });
@@ -923,8 +942,11 @@ async function openPip() {
   }
   if (pipWin) { pipWin.focus(); return; }
   try {
-    pipWin = await documentPictureInPicture.requestWindow({ width: 320, height: 430 });
+    // landscape by default; the size the user last dragged it to is kept
+    let size = { width: 560, height: 280 }; try { size = Object.assign(size, JSON.parse(localStorage.getItem('lr_pip_size') || '{}')); } catch (e) { }
+    pipWin = await documentPictureInPicture.requestWindow({ width: Math.max(260, size.width), height: Math.max(160, size.height) });
   } catch (e) { say('小窓を開けなかったよ。もう一度ボタンを押してみてね。'); return; }
+  pipWin.addEventListener('resize', () => { try { localStorage.setItem('lr_pip_size', JSON.stringify({ width: pipWin.innerWidth, height: pipWin.innerHeight })); } catch (e) { } render(true); });
   const doc = pipWin.document;
   doc.documentElement.lang = 'ja'; doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
   for (const ss of document.styleSheets) { try { const st = doc.createElement('style'); st.textContent = [...ss.cssRules].map(r => r.cssText).join('\n'); doc.head.appendChild(st); } catch (e) { } }

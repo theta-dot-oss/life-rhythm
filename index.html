@@ -716,7 +716,8 @@ async function deleteSet(id) {
   const db = await idb(); if (db) await idbRun(db, 'readwrite', st => st.delete(id));
 }
 // animations shipped with the app (sprites/manifest.json: [{name, file, state, name_ja?, version?, fps?, pingpong?}]) are
-// imported once into the same store as the user's own, so they can be renamed, retagged or deleted like any other
+// imported only when asked (「同梱のアニメを入れる」) into the same store as the user's own, so they can be renamed, retagged or
+// deleted like any other. A missing or empty manifest is skipped quietly.
 async function loadBuiltinSets(force) {
   let man; try { const r = await fetch('sprites/manifest.json', { cache: 'no-store' }); if (!r.ok) return 0; man = await r.json(); } catch (e) { return 0; }
   if (!Array.isArray(man)) return 0;
@@ -747,7 +748,7 @@ function setsFor(pose) {
 }
 function customImage() { return curImg; }
 // frames per second of one animation: its own setting, else config image_fps
-function setFps(s) { return Math.max(0.5, Math.min(10, (s && s.fps) || CFG.image_fps || 2)); }
+function setFps(s) { return Math.max(0.5, Math.min(10, (s && s.fps) || CFG.image_fps || 1)); }
 // one loop: 1-2-3-4 (plain) or 1-2-3-4-3-2 (ping-pong, the default: the loop has no jump back to the start)
 function loopLen(s) { const n = s.frames.length; return n === 1 ? 1 : s.pp === false ? n : 2 * n - 2; }
 function frameAt(s, k) { const n = s.frames.length; if (n === 1) return 0; const i = k % loopLen(s); return i < n ? i : loopLen(s) - i; }
@@ -845,8 +846,8 @@ function clearOuterWhite(g, w, h) {
 function showImagePanel() {
   const b = $('#imgBody', root);
   const tagSel = (sel, attr) => `<select ${attr}>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-  const fps = Math.max(0.5, Math.min(10, CFG.image_fps || 2)), hold = Math.max(0.1, CFG.image_switch_minutes || 12);
-  const SPEEDS = [['', `設定どおり（${fps}コマ/秒）`], ['1', 'ゆっくり（1コマ/秒）'], ['2', 'ふつう（2コマ/秒）'], ['4', 'はやい（4コマ/秒）'], ['8', 'とても速い（8コマ/秒）']];
+  const fps = Math.max(0.5, Math.min(10, CFG.image_fps || 1)), hold = Math.max(0.1, CFG.image_switch_minutes || 12);
+  const SPEEDS = [['', `設定どおり（${fps}コマ/秒）`], ['0.5', 'とてもゆっくり（2秒に1コマ）'], ['1', 'ゆっくり（1コマ/秒）'], ['2', 'ふつう（2コマ/秒）'], ['4', 'はやい（4コマ/秒）'], ['8', 'とても速い（8コマ/秒）']];
   const speedSel = s => `<select data-fps>${SPEEDS.map(([v, l]) => `<option value="${v}" ${String(s.fps || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const rows = SETS.map(s => `<div class="imgrow" data-id="${s.id}"><img src="${s.frames[0]}" alt=""><div class="col"><input data-name value="${escapeHtml(s.name || '')}" placeholder="名前" maxlength="30"><div class="sub">${tagSel(s.tag, 'data-tag')}${speedSel(s)}</div><div class="sub muted" style="font-size:11px"><label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" data-pp ${s.pp === false ? '' : 'checked'}> 往復再生</label><span style="white-space:nowrap">${s.frames.length}コマ${s.builtin ? '・同梱' : ''}</span></div></div><button class="ibtn" data-del title="削除">✕</button></div>`).join('');
   let lastTag = 'any'; try { lastTag = localStorage.getItem('lr_img_tag') || 'any'; } catch (e) { }
@@ -856,7 +857,7 @@ function showImagePanel() {
     <label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" id="imgWhite" checked> 外側の白い背景を透明にする</label>
     <label style="display:flex;gap:6px;align-items:center;font-size:12px">登録する状態：${tagSel(TAGS[lastTag] ? lastTag : 'any', 'id="imgTag"')}</label>
     <div id="imgRows">${rows || '<div class="muted">まだアニメはありません（描いたペンギンを表示中）</div>'}</div>
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sec" id="imgBuiltin" style="flex:1">同梱のアニメを入れ直す</button>${SETS.length ? `<button class="btn sec" id="imgReset" style="flex:1">すべて削除して描いたペンギンに戻す</button>` : ''}</div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sec" id="imgBuiltin" style="flex:1">同梱のアニメを入れる</button>${SETS.length ? `<button class="btn sec" id="imgReset" style="flex:1">すべて削除して描いたペンギンに戻す</button>` : ''}</div>
     <div class="muted" style="margin-top:8px;font-size:11px">「いつでも」のアニメはどの状態でも使われ、状態を指定したアニメはその状態のときに優先されます。名前と状態はあとから変えられます。</div>`;
   $('#imgTag', root).onchange = ev => { try { localStorage.setItem('lr_img_tag', ev.target.value); } catch (e) { } };
   $('#imgFile', root).onchange = ev => {
@@ -988,7 +989,6 @@ async function boot() {
   save();
   await loadSets();
   wire(document); render(true); renderHint();
-  loadBuiltinSets(); // in the background: the drawn penguin shows until the shipped animations are in
   // service worker: only for notification buttons (no caching)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     try { swReg = await navigator.serviceWorker.register('sw.js'); navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'notification-action') handleAction(e.data.action); }); } catch (e) { swReg = null; }

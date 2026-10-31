@@ -117,7 +117,17 @@ def find_cells(rgba, count=None):
         cells[i:i + 1] = [p for p in parts if p]
         if len(parts) < 2:
             break
-    cells.sort(key=lambda c: (round(c[1] / 50), c[0]))  # reading order: row, then column
+    # reading order: group into rows by the bottom edge (effects above the head would
+    # otherwise push a pose into a different row), then left to right
+    if cells:
+        h = float(np.median([c[3] - c[1] for c in cells]))
+        rows = []
+        for c in sorted(cells, key=lambda c: c[3]):
+            if rows and abs(c[3] - rows[-1][-1][3]) < h * 0.5:
+                rows[-1].append(c)
+            else:
+                rows.append([c])
+        cells = [c for row in rows for c in sorted(row, key=lambda c: c[0])]
     return cells
 
 def body_bottom(frame):

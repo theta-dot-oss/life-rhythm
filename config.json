@@ -17,7 +17,7 @@
   "timetable": [
     { "time": "09:00", "label": "起床", "kind": "wake", "notify": false },
     { "time": "10:00", "label": "研究開始", "kind": "research_start" },
-    { "time": "14:00", "label": "昼食・自由時間", "kind": "meal", "long_break": true },
+    { "time": "14:00", "label": "自由時間", "kind": "meal", "long_break": true },
     { "time": "15:00", "label": "昼寝・休息", "kind": "rest", "long_break": true },
     { "time": "17:00", "label": "起床・水分補給・準備", "kind": "prep" },
     { "time": "17:15", "label": "運動", "kind": "exercise", "fixed": true },

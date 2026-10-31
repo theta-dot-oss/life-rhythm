@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-theme="auto">
+<html lang="ja" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,14 +7,13 @@
 <meta name="description" content="研究・休憩・運動のリズムをペンギンが案内する常駐アプリ">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#eaf4fb" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111a24" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#cfe7f5">
 <style>
 :root{
-  --bg:#eef4f9; --card:#ffffff; --fg:#1d2a3a; --muted:#5f6f82; --line:#d7e2ec;
-  --accent:#2f8fd6; --accent-fg:#ffffff; --soft:#e3f1fb; --warn:#e3a53a; --ok:#3fa36b;
-  --bubble:#f3f8fc; --shadow:0 6px 24px rgba(30,50,80,.10);
-  --pg-body:#8fd3f4; --pg-hood:#3f9bdc; --pg-face:#ffffff; --pg-beak:#bfe6fb; --pg-line:#1e2c44; --pg-cheek:#f7b7c6;
+  --bg:#cfe7f5; --card:#eef7fc; --fg:#1d2a3a; --muted:#5f7387; --line:#bfdbeb;
+  --accent:#2f8fd6; --accent-fg:#ffffff; --soft:#d9edf9; --warn:#d99a2b; --ok:#3a9a65;
+  --bubble:#ffffff; --shadow:0 6px 24px rgba(30,50,80,.12);
+  --pg-body:#9dd7f3; --pg-face:#ffffff; --pg-beak:#d9eefb; --pg-line:#1f2733; --pg-feet:#c6dbe7; --pg-heart:#f38fb6;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -145,6 +144,7 @@ table.tt td:first-child{color:var(--muted);font-variant-numeric:tabular-nums;wid
 .pose-happy .whole{animation:hop 1s ease-in-out infinite}
 .pose-happy .eyes-open{display:none}
 .pose-happy .eyes-happy{display:block}
+.pose-happy .notes{display:block;animation:floatUp 1.6s ease-in-out infinite}
 .pose-happy .fl{animation:waveL 1s ease-in-out infinite}
 .pose-happy .fr{animation:waveR 1s ease-in-out infinite}
 @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
@@ -169,55 +169,53 @@ table.tt td:first-child{color:var(--muted);font-variant-numeric:tabular-nums;wid
       <svg viewBox="0 0 120 120" aria-label="青いペンギン">
         <g class="whole">
           <!-- feet -->
-          <ellipse cx="46" cy="110" rx="12" ry="5" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2"/>
-          <ellipse cx="74" cy="110" rx="12" ry="5" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2"/>
-          <!-- body -->
-          <path d="M60 14 C 28 14, 20 48, 22 76 C 24 100, 40 108, 60 108 C 80 108, 96 100, 98 76 C 100 48, 92 14, 60 14 Z" fill="var(--pg-hood)" stroke="var(--pg-line)" stroke-width="2.5"/>
-          <!-- belly / face (white) -->
-          <path d="M60 36 C 42 36, 32 52, 33 74 C 34 94, 46 104, 60 104 C 74 104, 86 94, 87 74 C 88 52, 78 36, 60 36 Z" fill="var(--pg-face)"/>
-          <path d="M60 30 C 50 30, 44 36, 44 44 C 44 54, 52 56, 60 56 C 68 56, 76 54, 76 44 C 76 36, 70 30, 60 30 Z" fill="var(--pg-face)"/>
+          <ellipse cx="45" cy="111" rx="13" ry="5.5" fill="var(--pg-feet)" stroke="var(--pg-line)" stroke-width="2.4"/>
+          <ellipse cx="75" cy="111" rx="13" ry="5.5" fill="var(--pg-feet)" stroke="var(--pg-line)" stroke-width="2.4"/>
+          <!-- body: one light-blue egg, big round head -->
+          <path d="M60 6 C 24 6, 10 36, 12 66 C 14 96, 34 112, 60 112 C 86 112, 106 96, 108 66 C 110 36, 96 6, 60 6 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/>
+          <!-- white belly -->
+          <path d="M60 84 C 44 84, 36 94, 38 106 C 42 112, 50 112, 60 112 C 70 112, 78 112, 82 106 C 84 94, 76 84, 60 84 Z" fill="var(--pg-face)"/>
+          <!-- white face mask; the hood dips to a point between the eyes -->
+          <path d="M60 36 C 52 28, 34 28, 28 44 C 22 60, 30 80, 60 82 C 90 80, 98 60, 92 44 C 86 28, 68 28, 60 36 Z" fill="var(--pg-face)"/>
           <!-- flippers -->
-          <g class="fl"><path d="M28 60 C 14 66, 10 82, 18 90 C 26 94, 34 82, 36 66 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="2.5"/></g>
-          <g class="fr"><path d="M92 60 C 106 66, 110 82, 102 90 C 94 94, 86 82, 84 66 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="2.5"/></g>
-          <!-- light blue body tint -->
-          <path d="M60 36 C 42 36, 32 52, 33 74 C 34 94, 46 104, 60 104 C 74 104, 86 94, 87 74 C 88 52, 78 36, 60 36 Z" fill="var(--pg-body)" opacity=".25"/>
+          <g class="fl"><path d="M16 62 C 2 70, 2 92, 14 96 C 24 98, 30 86, 30 70 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/></g>
+          <g class="fr"><path d="M104 62 C 118 70, 118 92, 106 96 C 96 98, 90 86, 90 70 Z" fill="var(--pg-body)" stroke="var(--pg-line)" stroke-width="3"/></g>
           <!-- eyes -->
           <g class="eyes-open">
-            <circle cx="50" cy="46" r="3.2" fill="var(--pg-line)"/>
-            <circle cx="70" cy="46" r="3.2" fill="var(--pg-line)"/>
-            <circle cx="51.2" cy="44.8" r="1" fill="#fff"/>
-            <circle cx="71.2" cy="44.8" r="1" fill="#fff"/>
+            <ellipse cx="46" cy="55" rx="3.4" ry="4.4" fill="var(--pg-line)"/>
+            <ellipse cx="74" cy="55" rx="3.4" ry="4.4" fill="var(--pg-line)"/>
+            <circle cx="47.3" cy="53.2" r="1.1" fill="#fff"/>
+            <circle cx="75.3" cy="53.2" r="1.1" fill="#fff"/>
           </g>
-          <g class="eyes-sleep" stroke="var(--pg-line)" stroke-width="2.4" stroke-linecap="round" fill="none">
-            <path d="M46 47 q4 2 8 0"/><path d="M66 47 q4 2 8 0"/>
+          <g class="eyes-sleep" stroke="var(--pg-line)" stroke-width="2.6" stroke-linecap="round" fill="none">
+            <path d="M41 56 q5 3 10 0"/><path d="M69 56 q5 3 10 0"/>
           </g>
-          <g class="eyes-happy" stroke="var(--pg-line)" stroke-width="2.4" stroke-linecap="round" fill="none">
-            <path d="M46 47 q4 -4 8 0"/><path d="M66 47 q4 -4 8 0"/>
+          <g class="eyes-happy" fill="var(--pg-heart)" stroke="var(--pg-line)" stroke-width="1.6" stroke-linejoin="round">
+            <path d="M46 60 C 40 55, 39 49, 43 48 C 45 47.5, 46 49, 46 50 C 46 49, 47 47.5, 49 48 C 53 49, 52 55, 46 60 Z"/>
+            <path d="M74 60 C 68 55, 67 49, 71 48 C 73 47.5, 74 49, 74 50 C 74 49, 75 47.5, 77 48 C 81 49, 80 55, 74 60 Z"/>
           </g>
-          <!-- cheeks -->
-          <circle cx="43" cy="53" r="3" fill="var(--pg-cheek)" opacity=".8"/>
-          <circle cx="77" cy="53" r="3" fill="var(--pg-cheek)" opacity=".8"/>
-          <!-- beak (diamond) -->
-          <path d="M60 50 L 67 56 L 60 63 L 53 56 Z" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2.2" stroke-linejoin="round"/>
+          <!-- beak: light-blue diamond -->
+          <path d="M60 60 L 69 68 L 60 76 L 51 68 Z" fill="var(--pg-beak)" stroke="var(--pg-line)" stroke-width="2.6" stroke-linejoin="round"/>
+          <path d="M53.5 68 L 66.5 68" stroke="var(--pg-line)" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>
           <!-- props -->
           <g class="laptop">
-            <rect x="34" y="84" width="52" height="6" rx="2" fill="#9aa9b8" stroke="var(--pg-line)" stroke-width="2"/>
-            <rect x="38" y="62" width="44" height="24" rx="3" fill="#34495e" stroke="var(--pg-line)" stroke-width="2"/>
-            <rect x="42" y="66" width="36" height="16" rx="1.5" fill="#cfe9fb"/>
+            <rect x="30" y="98" width="60" height="6" rx="2" fill="#9aa9b8" stroke="var(--pg-line)" stroke-width="2"/>
+            <rect x="34" y="78" width="52" height="22" rx="3" fill="#34495e" stroke="var(--pg-line)" stroke-width="2"/>
+            <rect x="38" y="82" width="44" height="14" rx="1.5" fill="#cfe9fb"/>
           </g>
           <g class="bottle">
-            <rect x="96" y="78" width="10" height="24" rx="3" fill="#cfe9fb" stroke="var(--pg-line)" stroke-width="2"/>
-            <rect x="98" y="72" width="6" height="7" rx="1.5" fill="#3f9bdc" stroke="var(--pg-line)" stroke-width="2"/>
+            <rect x="106" y="84" width="10" height="22" rx="3" fill="#cfe9fb" stroke="var(--pg-line)" stroke-width="2"/>
+            <rect x="108" y="78" width="6" height="7" rx="1.5" fill="#3f9bdc" stroke="var(--pg-line)" stroke-width="2"/>
           </g>
         </g>
         <g class="zz" fill="var(--pg-line)" font-weight="700" font-family="system-ui,sans-serif">
-          <text x="92" y="24" font-size="14">z</text><text x="102" y="14" font-size="10">z</text>
+          <text x="100" y="20" font-size="14">z</text><text x="110" y="10" font-size="10">z</text>
         </g>
         <g class="notes" fill="var(--accent)" font-family="system-ui,sans-serif">
-          <text x="94" y="30" font-size="16">♪</text><text x="106" y="18" font-size="12">♫</text>
+          <text x="100" y="26" font-size="16">♪</text><text x="112" y="14" font-size="12">♫</text>
         </g>
         <g class="sweat" fill="#58a9e6">
-          <path d="M100 30 c-3 5 -3 8 0 8 c3 0 3 -3 0 -8z"/><path d="M108 22 c-2 4 -2 6 0 6 c2 0 2 -2 0 -6z"/>
+          <path d="M106 26 c-3 5 -3 8 0 8 c3 0 3 -3 0 -8z"/><path d="M114 18 c-2 4 -2 6 0 6 c2 0 2 -2 0 -6z"/>
         </g>
       </svg>
     </div>
@@ -503,11 +501,11 @@ function render(force) {
   const ex = exerciseToday(now);
   const exDue = ex && !S.exerciseDone && !S.exerciseSkipped && S.mode !== 'exercise' && S.mode !== 'done' && now >= ex.start && now < ex.start + (CFG.exercise_window_minutes || 60) * 60000;
   const badge = $('#badge', root), cur = $('#cur', root), el = $('#elapsed', root), elVal = $('#elapsedVal', root), elLabel = $('#elapsedLabel', root);
-  const names = { idle: ['待機中', '—'], working: ['研究中', '研究・執筆'], break: ['休憩中', '休憩'], longbreak: ['休憩中', S.slotLabel || '昼食・休息'], exercise: ['運動中', ex ? ex.name : '運動'], prep: ['準備中', '運動終了・研究準備'], done: ['研究終了', '今日はおしまい'] };
+  const names = { idle: ['待機中', '—'], working: ['研究中', '研究・執筆'], break: ['休憩中', '休憩'], longbreak: ['休憩中', S.slotLabel || '自由時間・休息'], exercise: ['運動中', ex ? ex.name : '運動'], prep: ['準備中', '運動終了・研究準備'], done: ['研究終了', '今日はおしまい'] };
   const [bt, ct] = names[S.mode] || names.idle;
   badge.textContent = (paused ? '一時停止 ' : '') + bt + (muted ? ' 🔕' : ''); badge.className = 'badge ' + S.mode;
   cur.textContent = ct;
-  let pose = { idle: 'idle', working: 'work', break: 'break', longbreak: 'sleep', exercise: 'ex', prep: 'prep', done: 'sleep' }[S.mode] || 'idle';
+  let pose = { idle: 'idle', working: 'work', break: 'break', longbreak: 'sleep', exercise: 'ex', prep: 'prep', done: (now - S.since < 10 * 60000 ? 'happy' : 'sleep') }[S.mode] || 'idle';
   if (exDue) pose = 'ex'; if (paused) pose = 'idle';
   if (S.mode === 'idle' || S.mode === 'done' || S.mode === 'prep') { elVal.textContent = ''; elLabel.textContent = ''; el.style.display = 'none'; }
   else { el.style.display = ''; elVal.textContent = fmtDur(elapsed); elLabel.textContent ={ working: '作業経過', break: '休憩経過', longbreak: '休憩経過', exercise: '運動経過' }[S.mode] || ''; }
@@ -588,7 +586,7 @@ function showMenu() {
   if (S.started && S.mode !== 'done') items.push(['end', '研究終了（今日のまとめ）']);
   if (S.mode === 'done') items.push(['summary', '今日のまとめを見る']);
   items.push(['settings', '設定を見る', '変更はチャットで']);
-  items.push(['theme', 'テーマ切替', `現在：${{ auto: '自動', light: 'ライト', dark: 'ダーク' }[document.documentElement.dataset.theme] || '自動'}`]);
+  items.push(['theme', 'テーマ切替', `現在：${{ auto: 'OSに合わせる', light: '水色', dark: 'ダーク' }[document.documentElement.dataset.theme] || '水色'}`]);
   items.push(['pip', '小窓で常に最前面に表示']);
   items.push(['perm', '通知の許可状態を確認']);
   items.push(['sep']);
@@ -713,7 +711,7 @@ function wire(doc) {
       case 'summary': showSummary(); break;
       case 'list': showList('今日のリスト'); break;
       case 'settings': showSettings(); break;
-      case 'theme': { const cur = document.documentElement.dataset.theme || 'auto'; const nx = { auto: 'dark', dark: 'light', light: 'auto' }[cur]; setTheme(nx); break; }
+      case 'theme': { const cur = document.documentElement.dataset.theme || 'light'; const nx = { light: 'dark', dark: 'auto', auto: 'light' }[cur]; setTheme(nx); break; }
       case 'pip': openPip(); break;
       case 'perm': ensurePermission(); say(('Notification' in window) ? ({ granted: '通知はオンだよ！', denied: '通知がブロックされてるみたい。ブラウザの設定で許可してね。', default: '通知の許可を求めたよ。' }[Notification.permission]) : '通知に未対応のブラウザだよ。'); break;
       case 'reset': if (confirm('今日の状態（タイマーと記録）をリセットする？')) { S = freshState(now); save(); render(true); say('リセットしたよ。'); } break;
@@ -729,7 +727,7 @@ async function refreshData() {
   const t = await loadJson('data/today.json'); if (t) TODAY = t;
 }
 async function boot() {
-  try { setTheme(localStorage.getItem(LS_THEME) || 'auto'); } catch (e) { }
+  try { setTheme(localStorage.getItem(LS_THEME) || 'light'); } catch (e) { }
   CFG = DEFAULT_CFG;
   await refreshData();
   const now = Date.now();

@@ -174,6 +174,11 @@ def main():
     ref = float(np.median(top_to_feet))
     scale = (args.cell * args.fill) / ref
     base_y = int(args.cell * args.baseline)
+    # never let a pose (a jump with rays above it, wide-open arms) run out of the cell:
+    # shrink the common scale until the tallest and widest poses fit
+    tallest = max(top_to_feet)
+    widest = max(f.width for f in frames)
+    scale = min(scale, (base_y - 6) / tallest, (args.cell - 8) / widest)
 
     cell_imgs = []
     for i, f in enumerate(frames):

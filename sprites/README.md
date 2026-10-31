@@ -32,3 +32,14 @@ python3 tools/sprites/gen.py out && node tools/sprites/render.js out && python3 
 ```
 
 `gen.py` の `A[...]` に関数を足せばアニメを増やせます（Playwright の Chromium で描画）。
+
+## 画像生成の絵からシートを作る
+
+画像生成で作ったポーズ集（白背景、格子状に並んだ絵）は `tools/sprites/sheetify.py` でアプリ用シートにできます。
+背景を透過にし、全ポーズを同じ縮尺にそろえ、足元を同じ高さに合わせて 320px のコマに並べます。
+
+```
+python3 tools/sprites/sheetify.py poses.png out --order 1,2,1,3,4,4 --name work-idea --state work --name-ja ひらめき --fps 2 --pingpong
+```
+
+`--order` はポーズ番号（左上から読み順、1始まり）の並び。省略すると全ポーズを順番に並べ、`out/frames/` に1コマずつも書き出します。

@@ -50,7 +50,9 @@ body.pip #app{max-width:none;border-radius:0;border:0;box-shadow:none;min-height
 .pg.custom svg{display:none}
 .pg.custom .imgwrap{display:block}
 .imgpanel input[type=file]{width:100%;font-size:12px;margin:6px 0}
-.imgpanel .prev{width:120px;height:120px;object-fit:contain;background:var(--soft);border-radius:12px;display:block;margin:8px auto}
+.imgrow{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.imgrow img{width:48px;height:48px;object-fit:contain;background:var(--soft);border-radius:10px;flex:0 0 auto}
+.imgrow select{flex:1;font-size:12px;padding:4px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
 .info{flex:1;min-width:0;padding-top:6px}
 .badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--soft);color:var(--accent)}
 .badge.working{background:var(--soft)}
@@ -573,6 +575,7 @@ function render(force) {
 
   // penguin + bubble
   const pg = $('#pg', root); if (pose !== lastPose) { [...pg.classList].filter(c => c.startsWith('pose-')).forEach(c => pg.classList.remove(c)); pg.classList.add('pose-' + pose); lastPose = pose; }
+  if (force || now - curImgAt > 30000 || pose !== curImgPose) applyCustomImage(false);
   if (!S.line || (now - (S.lineAt || 0) > 90000 && !dueBreak && !exDue)) {
     const key = { idle: S.started ? 'idle' : 'idle', working: 'working', break: 'breaking', longbreak: 'long_break', exercise: 'exercising', prep: 'exercise_done', done: 'done' }[S.mode] || 'idle';
     const l = pick(L(key), S.line); if (l) { S.line = l; S.lineAt = now; save(); }
@@ -598,7 +601,7 @@ function showMenu() {
   items.push(['settings', '設定を見る', '変更はチャットで']);
   items.push(['theme', 'テーマ切替', `現在：${{ auto: 'OSに合わせる', light: '水色', dark: 'ダーク' }[document.documentElement.dataset.theme] || '水色'}`]);
   items.push(['pip', '小窓で常に最前面に表示']);
-  items.push(['image', 'キャラクターの画像を変える', customImage() ? '自分の画像' : '描いたペンギン']);
+  items.push(['image', 'キャラクターの画像', imgList().length ? `自分の画像 ${imgList().length}枚` : '描いたペンギン']);
   items.push(['perm', '通知の許可状態を確認']);
   items.push(['sep']);
   items.push(['reset', '今日の状態をリセット', '間違えて押したとき用']);
@@ -655,11 +658,34 @@ function showSettings() {
   h += `<h4>データ</h4><div class="muted">設定：config.json ／ 今日のデータ：data/today.json${TODAY && TODAY.generated_at ? `（更新 ${TODAY.generated_at.slice(0, 16).replace('T', ' ')}）` : ''}</div>`;
   b.innerHTML = h; openPanel('setPanel');
 }
-/* ---------- custom character image (stays in this browser only) ---------- */
-function customImage() { try { return localStorage.getItem(LS_IMG) || ''; } catch (e) { return ''; } }
-function applyCustomImage() {
-  const src = customImage(); const pg = $('#pg', root), img = $('#customImg', root);
-  if (src) { img.src = src; pg.classList.add('custom'); } else { img.removeAttribute('src'); pg.classList.remove('custom'); }
+/* ---------- custom character images (stay in this browser only) ---------- */
+const LS_IMGS = 'lr_char_imgs';
+const TAGS = { any: 'いつでも', work: '作業中', break: '休憩中', ex: '運動中', sleep: '休息・終了後', happy: 'ごほうび（終了直後）' };
+let curImg = null, curImgAt = 0, curImgPose = '';
+function imgList() {
+  try {
+    let a = JSON.parse(localStorage.getItem(LS_IMGS) || 'null');
+    if (!Array.isArray(a)) { a = []; const old = localStorage.getItem(LS_IMG); if (old) { a.push({ id: 'i' + Date.now(), data: old, tag: 'any' }); localStorage.setItem(LS_IMGS, JSON.stringify(a)); localStorage.removeItem(LS_IMG); } }
+    return a;
+  } catch (e) { return []; }
+}
+function saveImgList(a) { try { localStorage.setItem(LS_IMGS, JSON.stringify(a)); return true; } catch (e) { return false; } }
+function customImage() { return curImg ? curImg.data : ''; }
+function applyCustomImage(force) {
+  const list = imgList(); const pg = $('#pg', root), img = $('#customImg', root);
+  if (!list.length) { curImg = null; img.removeAttribute('src'); pg.classList.remove('custom'); return; }
+  const now = Date.now(), pose = lastPose || 'idle';
+  const tag = { work: 'work', break: 'break', ex: 'ex', sleep: 'sleep', happy: 'happy' }[pose] || 'any';
+  let pool = list.filter(i => i.tag === tag); if (!pool.length) pool = list.filter(i => !i.tag || i.tag === 'any'); if (!pool.length) pool = list;
+  const rotate = (CFG.image_rotate_minutes || 10) * 60000;
+  const stillOk = curImg && pool.some(i => i.id === curImg.id);
+  if (!force && stillOk && pose === curImgPose && now - curImgAt < rotate) { pg.classList.add('custom'); return; }
+  if (!force && stillOk && pose === curImgPose && pool.length === 1) { curImgAt = now; return; }
+  const others = pool.filter(i => !curImg || i.id !== curImg.id);
+  curImg = (others.length ? others : pool)[Math.floor(Math.random() * (others.length ? others : pool).length)];
+  curImgAt = now; curImgPose = pose;
+  if (img.getAttribute('src') !== curImg.data) img.src = curImg.data;
+  pg.classList.add('custom');
 }
 // make the white (or near-white) area connected to the image border transparent; white inside the character stays
 function clearOuterWhite(g, w, h) {
@@ -671,33 +697,41 @@ function clearOuterWhite(g, w, h) {
   g.putImageData(img, 0, 0);
 }
 function showImagePanel() {
-  const b = $('#imgBody', root); const src = customImage();
-  b.innerHTML = `<div class="muted" style="margin-bottom:6px">PCにある画像（PNG/JPG/GIF）を選ぶと、ペンギンの代わりに表示します。画像はこのブラウザの中にだけ保存され、GitHubにもどこにもアップロードされません。</div>
-    <input type="file" id="imgFile" accept="image/*">
+  const b = $('#imgBody', root); const list = imgList();
+  const rows = list.map(i => `<div class="imgrow" data-id="${i.id}"><img src="${i.data}" alt=""><select data-tag>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${(i.tag || 'any') === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="ibtn" data-del title="削除">✕</button></div>`).join('');
+  b.innerHTML = `<div class="muted" style="margin-bottom:6px">PCにある画像（PNG/JPG）を何枚でも登録できます。状態（作業中・休憩中…）に合わせて自動で切り替わり、同じ状態が続くときも${CFG.image_rotate_minutes || 10}分ごとに入れ替わります。画像はこのブラウザの中にだけ保存され、どこにもアップロードされません。</div>
+    <input type="file" id="imgFile" accept="image/*" multiple>
     <label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" id="imgWhite" checked> 外側の白い背景を透明にする</label>
-    <img class="prev" id="imgPrev" alt="" ${src ? `src="${src}"` : ''}>
-    <div style="display:flex;gap:8px"><button class="btn sec" id="imgReset" style="flex:1">描いたペンギンに戻す</button></div>
-    <div class="muted" style="margin-top:8px;font-size:11px">コツ：キャラクターだけを切り抜いた、正方形に近い画像がきれいに収まります。白背景の画像でも、外側の白だけを自動で透明にできます。</div>`;
+    <div id="imgRows">${rows || '<div class="muted">まだ画像はありません（描いたペンギンを表示中）</div>'}</div>
+    ${list.length ? `<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sec" id="imgReset" style="flex:1">すべて削除して描いたペンギンに戻す</button></div>` : ''}
+    <div class="muted" style="margin-top:8px;font-size:11px">コツ：キャラクターだけを切り抜いた、正方形に近い画像がきれいに収まります。「いつでも」の画像はどの状態でも使われ、状態を指定した画像はその状態のときに優先されます。</div>`;
   $('#imgFile', root).onchange = ev => {
-    const f = ev.target.files && ev.target.files[0]; if (!f) return;
-    const rd = new FileReader();
-    rd.onload = () => {
-      const im = new Image();
-      im.onload = () => {
-        const max = 320, s = Math.min(1, max / Math.max(im.width, im.height));
-        const c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
-        const g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
-        if ($('#imgWhite', root).checked) clearOuterWhite(g, c.width, c.height);
-        const keepGif = f.type === 'image/gif' && f.size < 400000 && !$('#imgWhite', root).checked;
-        const data = keepGif ? rd.result : c.toDataURL('image/png');
-        try { localStorage.setItem(LS_IMG, data); } catch (e) { say('画像が大きすぎて保存できなかったよ。小さめの画像で試してね。'); return; }
-        $('#imgPrev', root).src = data; applyCustomImage(); say('画像を変えたよ！だいちゃーじ！');
+    const files = [...(ev.target.files || [])]; if (!files.length) return;
+    const white = $('#imgWhite', root).checked; let done = 0, failed = 0;
+    files.forEach(f => {
+      const rd = new FileReader();
+      rd.onload = () => {
+        const im = new Image();
+        im.onload = () => {
+          const max = 320, s = Math.min(1, max / Math.max(im.width, im.height));
+          const c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+          const g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
+          if (white) clearOuterWhite(g, c.width, c.height);
+          const a = imgList(); a.push({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), data: c.toDataURL('image/png'), tag: 'any' });
+          if (saveImgList(a)) done++; else failed++;
+          if (done + failed === files.length) { applyCustomImage(true); showImagePanel(); say(failed ? `${done}枚登録。${failed}枚は保存できなかった（容量いっぱいかも）。` : `${done}枚登録したよ！だいちゃーじ！`); }
+        };
+        im.onerror = () => { failed++; if (done + failed === files.length) showImagePanel(); };
+        im.src = rd.result;
       };
-      im.src = rd.result;
-    };
-    rd.readAsDataURL(f);
+      rd.readAsDataURL(f);
+    });
   };
-  $('#imgReset', root).onclick = () => { try { localStorage.removeItem(LS_IMG); } catch (e) { } $('#imgPrev', root).removeAttribute('src'); applyCustomImage(); say('描いたペンギンに戻したよ。'); };
+  b.querySelectorAll('.imgrow').forEach(row => {
+    row.querySelector('[data-tag]').onchange = ev => { const a = imgList(); const it = a.find(i => i.id === row.dataset.id); if (it) { it.tag = ev.target.value; saveImgList(a); applyCustomImage(true); } };
+    row.querySelector('[data-del]').onclick = () => { saveImgList(imgList().filter(i => i.id !== row.dataset.id)); if (curImg && curImg.id === row.dataset.id) curImg = null; applyCustomImage(true); showImagePanel(); };
+  });
+  const r = $('#imgReset', root); if (r) r.onclick = () => { if (!confirm('登録した画像をすべて削除する？')) return; saveImgList([]); curImg = null; applyCustomImage(true); showImagePanel(); say('描いたペンギンに戻したよ。'); };
   openPanel('imgPanel');
 }
 function saveHistory() {
@@ -732,7 +766,7 @@ async function openPip() {
   doc.documentElement.lang = 'ja'; doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
   for (const ss of document.styleSheets) { try { const st = doc.createElement('style'); st.textContent = [...ss.cssRules].map(r => r.cssText).join('\n'); doc.head.appendChild(st); } catch (e) { } }
   doc.body.className = 'pip'; doc.body.append($('#app'));
-  root = doc; wire(doc); lastPose = ''; lastLine = ''; applyCustomImage(); render(true); renderHint();
+  root = doc; wire(doc); lastPose = ''; lastLine = ''; render(true); renderHint();
   const host = document.body;
   host.insertAdjacentHTML('beforeend', `<div id="pipNote" style="text-align:center;color:var(--muted);padding:40px 16px;font-size:14px">小窓で表示中だよ。<br>このタブは閉じずに最小化してOK。<br><button id="pipBack" class="btn" style="margin-top:14px;flex:none">ここに戻す</button></div>`);
   $('#pipBack').onclick = () => pipWin && pipWin.close();
@@ -790,7 +824,7 @@ async function boot() {
   const now = Date.now();
   S = load(); if (!S || S.day !== dayKey(now)) S = freshState(now);
   save();
-  wire(document); applyCustomImage(); render(true); renderHint();
+  wire(document); render(true); renderHint();
   // service worker: only for notification buttons (no caching)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     try { swReg = await navigator.serviceWorker.register('sw.js'); navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'notification-action') handleAction(e.data.action); }); } catch (e) { swReg = null; }

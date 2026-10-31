@@ -13,6 +13,7 @@
   "sound": true,
   "cameo_chance": 0.25,
   "milk_chance": 0.25,
+  "image_rotate_minutes": 10,
 
   "timetable": [
     { "time": "09:00", "label": "起床", "kind": "wake", "notify": false },

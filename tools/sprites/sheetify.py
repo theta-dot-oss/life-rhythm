@@ -13,15 +13,33 @@ import argparse, json, os, sys
 import numpy as np
 from PIL import Image, ImageFilter
 
+def border_connected(mask):
+    """Pixels of `mask` reachable from the image border (4-connected flood fill, numpy)."""
+    reach = np.zeros_like(mask)
+    reach[0, :], reach[-1, :], reach[:, 0], reach[:, -1] = mask[0, :], mask[-1, :], mask[:, 0], mask[:, -1]
+    while True:
+        grow = reach.copy()
+        grow[1:, :] |= reach[:-1, :]; grow[:-1, :] |= reach[1:, :]
+        grow[:, 1:] |= reach[:, :-1]; grow[:, :-1] |= reach[:, 1:]
+        grow &= mask
+        if np.array_equal(grow, reach):
+            return reach
+        reach = grow
+
 def to_rgba(im):
-    """White (or near-white) background -> transparent, with soft edges."""
+    """Background (near-white, connected to the image border) -> transparent, with soft
+    edges. White areas inside the drawing (face, belly, paper) stay opaque."""
     rgb = np.asarray(im.convert("RGB")).astype(np.float32)
-    # distance from pure white, 0..441
-    d = np.sqrt(((255 - rgb) ** 2).sum(axis=2))
-    alpha = np.clip((d - 18) / 40.0, 0, 1)  # <18: bg, >58: fully opaque
+    d = np.sqrt(((255 - rgb) ** 2).sum(axis=2))      # distance from pure white, 0..441
+    bg = border_connected(d < 58)                     # candidate background pixels
+    # soft alpha only in the background region and a 1px fringe around it
+    fringe = bg.copy()
+    fringe[1:, :] |= bg[:-1, :]; fringe[:-1, :] |= bg[1:, :]; fringe[:, 1:] |= bg[:, :-1]; fringe[:, :-1] |= bg[:, 1:]
+    alpha = np.where(fringe, np.clip((d - 18) / 40.0, 0, 1), 1.0)
+    alpha[bg & (d < 18)] = 0
     # un-premultiply the white fringe so semi-transparent edge pixels keep their colour
     a = alpha[..., None]
-    col = np.where(a > 0.02, np.clip((rgb - 255 * (1 - a)) / np.maximum(a, 0.02), 0, 255), rgb)
+    col = np.where((a > 0.02) & (a < 1), np.clip((rgb - 255 * (1 - a)) / np.maximum(a, 0.02), 0, 255), rgb)
     out = np.dstack([col, alpha * 255]).astype(np.uint8)
     return Image.fromarray(out, "RGBA")
 

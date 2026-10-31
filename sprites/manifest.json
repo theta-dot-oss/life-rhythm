@@ -1,0 +1,100 @@
+[
+ {
+  "name": "work-typing",
+  "file": "work-typing.png",
+  "state": "work",
+  "state_ja": "作業中",
+  "frames": 6
+ },
+ {
+  "name": "work-thinking",
+  "file": "work-thinking.png",
+  "state": "work",
+  "state_ja": "作業中",
+  "frames": 6
+ },
+ {
+  "name": "work-writing",
+  "file": "work-writing.png",
+  "state": "work",
+  "state_ja": "作業中",
+  "frames": 6
+ },
+ {
+  "name": "break-stretch",
+  "file": "break-stretch.png",
+  "state": "break",
+  "state_ja": "休憩中",
+  "frames": 6
+ },
+ {
+  "name": "break-tea",
+  "file": "break-tea.png",
+  "state": "break",
+  "state_ja": "休憩中",
+  "frames": 6
+ },
+ {
+  "name": "break-music",
+  "file": "break-music.png",
+  "state": "break",
+  "state_ja": "休憩中",
+  "frames": 6
+ },
+ {
+  "name": "exercise-dumbbell",
+  "file": "exercise-dumbbell.png",
+  "state": "ex",
+  "state_ja": "運動中",
+  "frames": 6
+ },
+ {
+  "name": "exercise-jump",
+  "file": "exercise-jump.png",
+  "state": "ex",
+  "state_ja": "運動中",
+  "frames": 6
+ },
+ {
+  "name": "exercise-walk",
+  "file": "exercise-walk.png",
+  "state": "ex",
+  "state_ja": "運動中",
+  "frames": 6
+ },
+ {
+  "name": "rest-sleep",
+  "file": "rest-sleep.png",
+  "state": "sleep",
+  "state_ja": "休息・終了後",
+  "frames": 6
+ },
+ {
+  "name": "rest-relax",
+  "file": "rest-relax.png",
+  "state": "sleep",
+  "state_ja": "休息・終了後",
+  "frames": 6
+ },
+ {
+  "name": "reward-cheer",
+  "file": "reward-cheer.png",
+  "state": "happy",
+  "state_ja": "ごほうび（終了直後）",
+  "frames": 6
+ },
+ {
+  "name": "reward-love",
+  "file": "reward-love.png",
+  "state": "happy",
+  "state_ja": "ごほうび（終了直後）",
+  "frames": 6
+ },
+ {
+  "name": "reward-pump",
+  "file": "reward-pump.png",
+  "state": "happy",
+  "state_ja": "ごほうび（終了直後）",
+  "frames": 6
+ }
+]

@@ -3,7 +3,7 @@ app-ready sprite sheets: transparent background, every pose at the same scale, f
 the same baseline, 320px cells with 40px gaps.
 
   python3 sheetify.py INPUT.png OUTDIR [--order 1,2,1,3,4,4] [--name work-thinking]
-                      [--state work] [--name-ja ひらめき] [--fps 2] [--pingpong]
+                      [--state work] [--name-ja ひらめき] [--seconds 1.5] [--pingpong]
                       [--cell 320] [--gap 40] [--baseline 0.93] [--fill 0.88]
 
 Without --order it writes one sheet with all poses in reading order, plus every pose
@@ -145,7 +145,8 @@ def main():
     ap.add_argument("input"); ap.add_argument("outdir")
     ap.add_argument("--order", help="1-based pose indices for the animation, e.g. 1,2,1,3,4,4")
     ap.add_argument("--name", default=None); ap.add_argument("--state", default="any")
-    ap.add_argument("--name-ja", default=None); ap.add_argument("--fps", type=int, default=2)
+    ap.add_argument("--name-ja", default=None); ap.add_argument("--fps", type=int, default=None)
+    ap.add_argument("--seconds", type=float, default=1.5, help="seconds per frame in the app (1-3 recommended)")
     ap.add_argument("--pingpong", action="store_true")
     ap.add_argument("--cell", type=int, default=320); ap.add_argument("--gap", type=int, default=40)
     ap.add_argument("--pad", type=int, default=20)
@@ -200,7 +201,9 @@ def main():
     out = os.path.join(args.outdir, f"{name}.png")
     sheet.save(out, optimize=True)
     entry = {"name": name, "name_ja": args.name_ja or name, "file": f"{name}.png", "state": args.state,
-             "frames": n, "frame_size": args.cell, "gap": args.gap, "fps": args.fps, "pingpong": args.pingpong, "version": args.version}
+             "frames": n, "frame_size": args.cell, "gap": args.gap, "seconds": args.seconds, "pingpong": args.pingpong, "version": args.version}
+    if args.fps:
+        entry["fps"] = args.fps
     json.dump(entry, open(os.path.join(args.outdir, f"{name}.manifest.json"), "w"), ensure_ascii=False, indent=1)
     print(f"{len(frames)} poses found -> {out} ({n} frames); scale={scale:.3f}")
 

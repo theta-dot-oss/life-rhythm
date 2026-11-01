@@ -295,7 +295,8 @@ table.tt td:first-child{color:var(--muted);font-variant-numeric:tabular-nums;wid
 (() => {
 'use strict';
 const $ = (s, r = document) => r.querySelector(s);
-const LS = 'lr_state_v1', LS_THEME = 'lr_theme', LS_HIST = 'lr_history_v1', LS_IMG = 'lr_char_img';
+// LS_THEME was renamed once (lr_theme -> lr_theme2) so that a dark/auto choice saved by the very first version is dropped and the app comes up light blue
+const LS = 'lr_state_v1', LS_THEME = 'lr_theme2', LS_HIST = 'lr_history_v1', LS_IMG = 'lr_char_img';
 const pad = n => String(n).padStart(2, '0');
 const fmtClock = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const fmtDur = ms => { ms = Math.max(0, Math.round(ms / 1000)); const h = Math.floor(ms / 3600), m = Math.floor(ms % 3600 / 60), s = ms % 60; return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`; };
@@ -972,7 +973,7 @@ async function openPip() {
   } catch (e) { say('小窓を開けなかったよ。もう一度ボタンを押してみてね。'); return; }
   pipWin.addEventListener('resize', () => { try { localStorage.setItem('lr_pip_size', JSON.stringify({ width: pipWin.innerWidth, height: pipWin.innerHeight })); } catch (e) { } render(true); });
   const doc = pipWin.document;
-  doc.documentElement.lang = 'ja'; doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
+  doc.documentElement.lang = 'ja'; applyPipTheme(doc);
   // copy the page's own <style> blocks verbatim (serialising cssRules can drop or alter rules), then paint the background
   // explicitly with absolute URLs so the small window never shows the browser's default (black in dark mode) background
   document.querySelectorAll('style').forEach(s => doc.head.appendChild(s.cloneNode(true)));
@@ -1020,7 +1021,11 @@ function wire(doc) {
     }
   });
 }
-function setTheme(t) { document.documentElement.dataset.theme = t; if (pipWin) pipWin.document.documentElement.dataset.theme = t; try { localStorage.setItem(LS_THEME, t); } catch (e) { } }
+// the small window gets the resolved theme (auto -> light/dark from the OS) and a matching color-scheme, so it can never pick a
+// different theme from the main page, whatever the browser's own window colours are
+function effTheme(t) { return t === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : (t || 'light'); }
+function applyPipTheme(doc) { const e = effTheme(document.documentElement.dataset.theme); doc.documentElement.dataset.theme = e; doc.documentElement.style.colorScheme = e; }
+function setTheme(t) { document.documentElement.dataset.theme = t; if (pipWin) applyPipTheme(pipWin.document); try { localStorage.setItem(LS_THEME, t); } catch (e) { } }
 
 /* ---------- boot ---------- */
 async function loadJson(path) { try { const r = await fetch(path + '?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw 0; return await r.json(); } catch (e) { return null; } }

@@ -12,27 +12,27 @@
 :root{
   --bg:#cfe7f5; --card:#eef7fc; --fg:#1d2a3a; --muted:#5f7387; --line:#bfdbeb;
   --accent:#2f8fd6; --accent-fg:#ffffff; --soft:#d9edf9; --warn:#d99a2b; --ok:#3a9a65;
-  --bubble:#ffffff; --shadow:0 6px 24px rgba(30,50,80,.12);
+  --bubble:#ffffff; --shadow:0 6px 24px rgba(30,50,80,.12); --card-a:rgba(238,247,252,.72);
   --pg-body:#9dd7f3; --pg-face:#ffffff; --pg-beak:#cfe9fa; --pg-line:#1f2733; --pg-feet:#b9e0f5; --pg-heart:#f38fb6;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#0f161e; --card:#18222d; --fg:#e7eef5; --muted:#93a4b7; --line:#273441;
     --accent:#58a9e6; --accent-fg:#0d1621; --soft:#1f3140; --warn:#e6b35a; --ok:#5cc38a;
-    --bubble:#1f2b38; --shadow:0 6px 24px rgba(0,0,0,.35);
+    --bubble:#1f2b38; --shadow:0 6px 24px rgba(0,0,0,.35); --card-a:rgba(24,34,45,.86);
   }
 }
 :root[data-theme="dark"]{
   --bg:#0f161e; --card:#18222d; --fg:#e7eef5; --muted:#93a4b7; --line:#273441;
   --accent:#58a9e6; --accent-fg:#0d1621; --soft:#1f3140; --warn:#e6b35a; --ok:#5cc38a;
-  --bubble:#1f2b38; --shadow:0 6px 24px rgba(0,0,0,.35);
+  --bubble:#1f2b38; --shadow:0 6px 24px rgba(0,0,0,.35); --card-a:rgba(24,34,45,.86);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Yu Gothic UI","Hiragino Sans","Noto Sans JP",sans-serif;
+body{margin:0;background:var(--bg) url(bg.svg) center/cover no-repeat fixed;color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Yu Gothic UI","Hiragino Sans","Noto Sans JP",sans-serif;
   -webkit-font-smoothing:antialiased;display:flex;align-items:flex-start;justify-content:center;padding:16px}
 body.pip{padding:0;align-items:stretch}
-#app{width:100%;max-width:560px;background:var(--card);border-radius:18px;box-shadow:var(--shadow);border:1px solid var(--line);
+#app{width:100%;max-width:560px;background:var(--card-a);border-radius:18px;box-shadow:var(--shadow);border:1px solid var(--line);
   display:flex;flex-direction:column;overflow:hidden;position:relative}
 body.pip #app{max-width:none;border-radius:0;border:0;box-shadow:none;min-height:100%}
 /* wide (landscape) layout, applied by script when the app is at least 440px wide: penguin on the left, everything else on the right */
@@ -862,6 +862,24 @@ function clearOuterWhite(g, w, h) {
   while (q.length) { const i = q.pop(), x = i % w, y = (i - x) / w; d[i * 4 + 3] = 0; if (x > 0) push(x - 1, y); if (x < w - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < h - 1) push(x, y + 1); }
   g.putImageData(img, 0, 0);
 }
+/* ---------- background picture: the shipped star pattern (bg.svg) or the user's own picture, kept in this browser only ---------- */
+const LS_BG = 'lr_bg_img';
+function ownBg() { try { return localStorage.getItem(LS_BG) || ''; } catch (e) { return ''; } }
+function applyBg(doc) { (doc || root).body.style.backgroundImage = `url("${ownBg() || new URL('bg.svg', location.href).href}")`; }
+function setOwnBg(file, done) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 1400 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      let d = c.toDataURL('image/webp', 0.85); if (!d.startsWith('data:image/webp')) d = c.toDataURL('image/jpeg', 0.85);
+      try { localStorage.setItem(LS_BG, d); applyBg(); if (pipWin) applyBg(pipWin.document); done(true); } catch (e) { done(false); }
+    };
+    im.onerror = () => done(false); im.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
 function showImagePanel() {
   const b = $('#imgBody', root);
   const tagSel = (sel, attr) => `<select ${attr}>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
@@ -877,7 +895,11 @@ function showImagePanel() {
     <label style="display:flex;gap:6px;align-items:center;font-size:12px">登録する状態：${tagSel(TAGS[lastTag] ? lastTag : 'any', 'id="imgTag"')}</label>
     <div id="imgRows">${rows || '<div class="muted">まだアニメはありません（描いたペンギンを表示中）</div>'}</div>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sec" id="imgBuiltin" style="flex:1">同梱のアニメを入れる</button>${SETS.length ? `<button class="btn sec" id="imgReset" style="flex:1">すべて削除して描いたペンギンに戻す</button>` : ''}</div>
-    <div class="muted" style="margin-top:8px;font-size:11px">「いつでも」のアニメはどの状態でも使われ、状態を指定したアニメはその状態のときに優先されます。名前と状態はあとから変えられます。</div>`;
+    <div class="muted" style="margin-top:8px;font-size:11px">「いつでも」のアニメはどの状態でも使われ、状態を指定したアニメはその状態のときに優先されます。名前と状態はあとから変えられます。</div>
+    <h4 style="margin-top:14px">背景の画像</h4>
+    <div class="muted" style="font-size:11px">初期設定は同梱の星もよう。自分の画像にもできます（このブラウザの中にだけ保存）。</div>
+    <input type="file" id="bgFile" accept="image/*">
+    ${ownBg() ? '<button class="btn sec" id="bgReset" style="width:100%">星もように戻す</button>' : ''}`;
   $('#imgTag', root).onchange = ev => { try { localStorage.setItem('lr_img_tag', ev.target.value); } catch (e) { } };
   $('#imgFile', root).onchange = ev => {
     const files = [...(ev.target.files || [])]; if (!files.length) return;
@@ -914,6 +936,8 @@ function showImagePanel() {
   });
   const r = $('#imgReset', root); if (r) r.onclick = async () => { if (!(root.defaultView || window).confirm('登録したアニメをすべて削除する？')) return; for (const s of [...SETS]) await deleteSet(s.id); applyCustomImage(true); showImagePanel(); say('描いたペンギンに戻したよ。'); };
   $('#imgBuiltin', root).onclick = async () => { say('同梱のアニメを読み込み中…'); const n = await loadBuiltinSets(true); showImagePanel(); say(n ? `同梱のアニメ ${n}本が使えるよ！だいちゃーじ！` : 'まだ同梱のアニメは無いみたい。'); };
+  $('#bgFile', root).onchange = ev => { const f = ev.target.files && ev.target.files[0]; if (!f) return; setOwnBg(f, ok => { showImagePanel(); say(ok ? '背景を変えたよ！' : '背景を保存できなかった（画像が大きすぎるかも）。'); }); };
+  const br = $('#bgReset', root); if (br) br.onclick = () => { try { localStorage.removeItem(LS_BG); } catch (e) { } applyBg(); if (pipWin) applyBg(pipWin.document); showImagePanel(); say('星もように戻したよ。'); };
   openPanel('imgPanel');
 }
 function saveHistory() {
@@ -949,8 +973,10 @@ async function openPip() {
   pipWin.addEventListener('resize', () => { try { localStorage.setItem('lr_pip_size', JSON.stringify({ width: pipWin.innerWidth, height: pipWin.innerHeight })); } catch (e) { } render(true); });
   const doc = pipWin.document;
   doc.documentElement.lang = 'ja'; doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
-  for (const ss of document.styleSheets) { try { const st = doc.createElement('style'); st.textContent = [...ss.cssRules].map(r => r.cssText).join('\n'); doc.head.appendChild(st); } catch (e) { } }
-  doc.body.className = 'pip'; doc.body.append($('#app'));
+  // copy the page's own <style> blocks verbatim (serialising cssRules can drop or alter rules), then paint the background
+  // explicitly with absolute URLs so the small window never shows the browser's default (black in dark mode) background
+  document.querySelectorAll('style').forEach(s => doc.head.appendChild(s.cloneNode(true)));
+  doc.body.className = 'pip'; doc.body.style.backgroundColor = getComputedStyle(document.body).backgroundColor; doc.body.append($('#app')); applyBg(doc);
   root = doc; wire(doc); lastPose = ''; lastLine = ''; render(true); renderHint();
   const host = document.body;
   host.insertAdjacentHTML('beforeend', `<div id="pipNote" style="text-align:center;color:var(--muted);padding:40px 16px;font-size:14px">小窓で表示中だよ。<br>このタブは閉じずに最小化してOK。<br><button id="pipBack" class="btn" style="margin-top:14px;flex:none">ここに戻す</button></div>`);
@@ -1009,7 +1035,7 @@ async function boot() {
   const now = Date.now();
   S = load(); if (!S || S.day !== dayKey(now)) S = freshState(now);
   save();
-  await loadSets();
+  await loadSets(); applyBg();
   wire(document); render(true); renderHint();
   // service worker: only for notification buttons (no caching)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

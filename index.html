@@ -1242,6 +1242,8 @@ async function boot() {
   await refreshData();
   const now = Date.now();
   S = load(); if (!S || S.day !== dayKey(now)) S = freshState(now);
+  // a work block saved by the previous version (press + 50 min) is moved onto the clock grid once; blocks this version saved are unchanged
+  if (S.mode === 'working' && S.target && !S.extended && !S.pausedAt && (CFG.cycle_mode || 'clock') === 'clock') { const t = workTarget(S.since); if (S.target !== t) S.target = t > now ? t : workTarget(now); }
   save();
   await loadSets(); applyBg();
   wire(document); render(true); renderHint();

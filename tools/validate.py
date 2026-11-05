@@ -32,6 +32,14 @@ if cfg is not None:
             err(f"config.json: timetable[{i}].time が HH:MM ではない: {t.get('time')}")
         if not t.get("label"):
             err(f"config.json: timetable[{i}].label がない")
+    if cfg.get("cycle_mode", "clock") not in ("clock", "start"):
+        err("config.json: cycle_mode は clock か start")
+    bam = cfg.get("cycle_break_at_minute", 55)
+    if not isinstance(bam, (int, float)) or not 0 <= bam <= 59:
+        err("config.json: cycle_break_at_minute は 0〜59")
+    for k in ("cycle_grid_minutes", "cycle_min_first_work_minutes", "timetable_notice_minutes", "timetable_window_minutes"):
+        if k in cfg and (not isinstance(cfg[k], (int, float)) or cfg[k] < 0):
+            err(f"config.json: {k} は 0 以上の数にする")
     kinds = [t.get("kind") for t in cfg.get("timetable", [])]
     if "exercise" not in kinds:
         err("config.json: timetable に kind=exercise の行がない（運動の枠は固定）")

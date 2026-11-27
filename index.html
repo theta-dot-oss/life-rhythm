@@ -418,7 +418,7 @@ function ttMain(t, ex) {
     case 'research_resume': return `${t.time} 研究再開の時間！次のサイクル、いこう`;
     case 'research_end': return `${t.time} 研究終了の時間。［研究終了］でまとめを出すよ`;
     case 'prep': return `${t.time} 起きて水分補給！${ex ? fmtClock(new Date(ex.start)) + 'から運動だよ' : 'このあと運動だよ'}`;
-    default: return `${t.time} ${t.label}の時間！きりのいいところで［休憩開始］`;
+    default: return `${t.time} ${t.label}の時間！きりのいいところで［${S.mode === 'working' ? '作業終了' : '休憩開始'}］`;
   }
 }
 function ttButton(t) {
@@ -428,7 +428,7 @@ function ttButton(t) {
     case 'research_resume': return `<button class="btn" data-act="resume" ${a}>研究再開</button>`;
     case 'research_end': return `<button class="btn end" data-act="end" ${a}>研究終了</button>`;
     case 'prep': return `<button class="btn" data-act="prep" ${a}>起きた！準備する</button>`;
-    default: return `<button class="btn" data-act="break" ${a}>休憩開始（${escapeHtml(t.label)}）</button>`;
+    default: return `<button class="btn" data-act="break" ${a}>${S.mode === 'working' ? '作業終了' : '休憩開始'}（${escapeHtml(t.label)}）</button>`;
   }
 }
 function ttMessages(t, ex) {
@@ -442,8 +442,8 @@ function ttMessages(t, ex) {
       say: l, renotifyBody: '今日はここまで。［研究終了］でまとめを出すよ。', renotifySay: 'きりがついたら［研究終了］を押してね。' }; }
     case 'prep': { const when = ex ? fmtClock(new Date(ex.start)) + 'から' : 'このあと'; return { title, body: `起きて、水分補給！${when}運動だよ。`, actions: [{ action: 'prep', title: '起きた！' }],
       say: `${t.time}、起きて水分補給！${when}運動だよ。`, renotifyBody: '起きてるかな？水分をとって、運動の準備をしよう。', renotifySay: '起きてるかな？水分とって、運動の準備しよう。' }; }
-    default: return { title, body: 'きりのいいところで［休憩開始］を押してね。長めの休憩になるよ。', actions: [{ action: 'break', title: '休憩開始' }],
-      say: `${t.time}、${t.label}の時間だよ。きりのいいところで休憩しよう！`, renotifyBody: `まだ作業中？${t.label}、そろそろ切り上げよう。`, renotifySay: `${t.label}、そろそろ切り上げよう。研究はあとでも大丈夫。` };
+    default: { const w = S.mode === 'working' ? '作業終了' : '休憩開始'; return { title, body: `きりのいいところで［${w}］を押してね。長めの休憩になるよ。`, actions: [{ action: 'break', title: w }],
+      say: `${t.time}、${t.label}の時間だよ。きりのいいところで休憩しよう！`, renotifyBody: `まだ作業中？${t.label}、そろそろ切り上げよう。`, renotifySay: `${t.label}、そろそろ切り上げよう。研究はあとでも大丈夫。` }; }
   }
 }
 function ttNotice(t) { return { research_start: '準備ができたら［研究開始］だよ。', research_resume: '水分とって、席にもどろう。', research_end: 'まとめに入れるよう、きりをつけていこう。', prep: 'そろそろ起きる時間だよ。' }[t.kind] || 'きりのいいところを見つけておこう。'; }
@@ -478,15 +478,24 @@ function startResearch(now) {
   setMode('working', now, workTarget(now)); say(pick(L('start')));
   showList('今日のリスト');
 }
-function startBreak(now) {
-  // long break if we're inside a long_break slot (e.g. lunch/nap) and before the next prep/resume entry
-  const tt = timetableToday(now); let longUntil = null, slotLabel = null;
+// the long_break slot (free time / nap) that `now` falls in, up to the next prep/resume entry; lead = how early it already counts
+function longSlot(now, lead = 0) {
+  const tt = timetableToday(now);
   for (let i = 0; i < tt.length; i++) {
     const t = tt[i]; if (!t.long_break) continue;
     const nextHard = tt.slice(i + 1).find(x => !x.long_break);
     const slotEnd = nextHard ? nextHard.ts : t.ts + 3600000;
-    if (now >= t.ts - 10 * 60000 && now < slotEnd) { longUntil = slotEnd; slotLabel = t.label; break; }
+    if (now >= t.ts - lead && now < slotEnd) {
+      // the label of the entry we are in right now (15:00-17:00 is the nap, not the free time that opened the slot)
+      const cur = tt.slice(i).filter(x => x.long_break && x.ts <= now && x.ts < slotEnd).pop() || t;
+      return { label: cur.label, end: slotEnd };
+    }
   }
+  return null;
+}
+function startBreak(now) {
+  // long break if we're inside a long_break slot (e.g. lunch/nap) and before the next prep/resume entry
+  const slot = longSlot(now, 10 * 60000), longUntil = slot && slot.end, slotLabel = slot && slot.label;
   if (longUntil) { setMode('longbreak', now, longUntil); S.slotLabel = slotLabel; say(pick(L('long_break'))); }
   else {
     setMode('break', now, now + CFG.break_minutes * 60000);
@@ -627,9 +636,9 @@ function checkDue(now) {
   if (!paused && S.target && now >= S.target && !td) {
     if (S.mode === 'working') {
       if (!S.suggestion) { S.suggestion = pickSuggestion(); S.lastSuggestion = S.suggestion; save(); }
-      const mins = Math.max(1, Math.round((S.target - S.since - S.pausedTotal) / 60000));
-      notify('due:break', `${mins}分おつかれ！休憩しよう`, `休憩の提案：${S.suggestion}`,
-        [{ action: 'break', title: '休憩開始' }, { action: 'extend', title: `${CFG.extend_minutes}分延長` }],
+      const mins = Math.max(1, Math.round((S.target - S.since - S.pausedTotal) / 60000)), slot = longSlot(now);
+      notify('due:break', slot ? `${mins}分おつかれ！${slot.label}の時間だよ` : `${mins}分おつかれ！休憩しよう`, slot ? 'きりのいいところで［作業終了］を押してね。長めの休憩になるよ。' : `休憩の提案：${S.suggestion}`,
+        [{ action: 'break', title: slot ? '作業終了' : '休憩開始' }, { action: 'extend', title: `${CFG.extend_minutes}分延長` }],
         { max: nMax, renotifyBody: `${pick(L('break_renotify'))}　提案：${S.suggestion}`, say: `${pick(L('break_due'))}　→ ${S.suggestion}`, renotifySay: pick(L('break_renotify')) });
     } else if (S.mode === 'break') {
       const l = pick(L('resume_due'));
@@ -707,6 +716,9 @@ function render(force) {
   else if (S.mode === 'prep') { main = S.exerciseDone ? '水分補給して、研究再開の準備' : `水分補給して、運動の準備${ex && now < ex.start ? `（${fmtClock(new Date(ex.start))}から）` : ''}`; }
   else if (S.mode === 'done') { main = `今日の研究は終了。おつかれさま！`; }
   else { main = S.started ? '準備ができたら再開しよう' : '［研究開始］で今日をスタート'; }
+  // working (or on a short break) inside free time / nap after its asking window: the way out of work stays obvious
+  const slot = (!td && (S.mode === 'working' || S.mode === 'break')) ? longSlot(now) : null;
+  if (slot && S.mode === 'working') main = `${slot.label}の時間だよ。きりのいいところで［作業終了］`;
   if (td) main = ttMain(td, ex);
   if (exDue) main = '運動の時間！準備ができたら［運動開始］';
   if (paused) main = '一時停止中';
@@ -743,7 +755,8 @@ function render(force) {
   const endEntry = timetableToday(now).find(t => t.kind === 'research_end');
   const endDue = S.started && S.mode !== 'done' && S.mode !== 'event' && endEntry && now >= endEntry.ts;
   const modeBtn = S.mode === 'idle' ? `<button class="btn" data-act="start">${S.started ? '研究再開' : '研究開始'}</button>`
-    : S.mode === 'working' ? `<button class="btn" data-act="break">休憩開始</button>${dueBreak ? `<button class="btn sec" data-act="extend">${CFG.extend_minutes}分延長</button>` : ''}`
+    : S.mode === 'working' ? (slot ? `<button class="btn" data-act="break">作業終了（${escapeHtml(slot.label)}）</button>` : `<button class="btn" data-act="break">休憩開始</button>`) + (dueBreak ? `<button class="btn sec" data-act="extend">${CFG.extend_minutes}分延長</button>` : '')
+    : (S.mode === 'break' && slot) ? `<button class="btn" data-act="break">このまま${escapeHtml(slot.label)}</button><button class="btn sec" data-act="resume">作業再開</button>`
     : (S.mode === 'break' || S.mode === 'longbreak' || S.mode === 'prep') ? `<button class="btn" data-act="resume">作業再開</button>`
     : S.mode === 'exercise' ? `<button class="btn" data-act="exercise_done">運動終了</button>`
     : S.mode === 'event' ? `<button class="btn" data-act="event_end">${escapeHtml(shortTitle(S.event ? S.event.title : '予定'))} 終了</button>`
